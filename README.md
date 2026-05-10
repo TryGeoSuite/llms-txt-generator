@@ -7,7 +7,8 @@
 > Built and maintained by [GeoSuite](https://trygeosuite.it).
 
 [![CI](https://github.com/TryGeoSuite/llms-txt-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/TryGeoSuite/llms-txt-generator/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/@geosuite/llms-txt-generator.svg)](https://www.npmjs.com/package/@geosuite/llms-txt-generator)
+[![npm version](https://img.shields.io/npm/v/@geosuite/llms-txt-generator.svg)](https://www.npmjs.com/package/@geosuite/llms-txt-generator)
+[![npm downloads](https://img.shields.io/npm/dm/@geosuite/llms-txt-generator.svg)](https://www.npmjs.com/package/@geosuite/llms-txt-generator)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ---

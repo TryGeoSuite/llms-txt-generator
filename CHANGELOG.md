@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.0 — 2026-05-10
+
+### Added
+
+- `--respect-robots` flag: fetches `/robots.txt` before enrichment and drops
+  entries whose paths are disallowed for `User-Agent: *`. Only active when
+  the sitemap source is an HTTP/HTTPS URL (local file paths are skipped).
+  New `filterByRobots(entries, sitemapUrl, opts)` export in `src/index.js`.
+  New module `src/robots.js` (zero deps, fetch-based).
+
+## 0.2.3 — 2026-05-10
+
+### Added
+
+- README: npm downloads badge (alongside the existing version + CI
+  badges).
+- `npm run coverage` script using Node 22's built-in
+  `--experimental-test-coverage` (zero new dependencies).
+
+### Changed
+
+- CI workflow now triggers on the `production` branch (matching the
+  actual default branch) instead of `main`. Workflow now also runs
+  `npm run lint` and a coverage step on the Node 22 matrix entry.
+
+## 0.2.2 — 2026-05-10
+
+### Changed
+
+- Republish; no source changes (resolved npm CDN propagation lag noted
+  at 0.2.1).
+
+## 0.2.1 — 2026-05-10
+
+### Added
+
+- `llms-txt-generator` bin alias matching the npm package name so
+  `npx @geosuite/llms-txt-generator` works without `--package=`.
+
 ## 0.2.0 — 2026-05-10
 
 ### Added

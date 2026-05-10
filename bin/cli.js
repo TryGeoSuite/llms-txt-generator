@@ -6,7 +6,7 @@
 //                     [--concurrency=5] [--max-entries=N] [--help]
 
 import { writeFile } from 'node:fs/promises';
-import { loadSitemap, enrichEntry, groupByPrefix, renderLlmsTxt } from '../src/index.js';
+import { loadSitemap, filterByRobots, enrichEntry, groupByPrefix, renderLlmsTxt } from '../src/index.js';
 import { chat, detectProvider } from '../src/ai.js';
 
 const HELP = `geosuite-llms-txt — generate an llms.txt from a sitemap.xml
@@ -37,6 +37,8 @@ OPTIONS
                        URL instead of the regex-extracted meta description.
                        Requires OPENAI_API_KEY or ANTHROPIC_API_KEY. Implies
                        --enrich.
+  --respect-robots     (0.3+) Fetch /robots.txt and drop entries whose paths
+                       are disallowed for User-Agent: *.
   --help, -h           Show this help.
 
 EXAMPLES
@@ -57,6 +59,7 @@ async function main(argv) {
   const outPath = args.out;
   const useAi = !!args.ai;
   const enrich = !!args.enrich || useAi;
+  const respectRobots = !!args['respect-robots'];
   const concurrency = clampInt(args.concurrency, 1, 64, 5);
   const maxEntries = args['max-entries'] ? clampInt(args['max-entries'], 1, 1_000_000, null) : null;
 
@@ -84,6 +87,14 @@ async function main(argv) {
       }
     }
     entries = all;
+  }
+
+  // 0.3+ robots.txt filter — runs before include/exclude so user caps apply
+  // to the post-robots set.
+  if (respectRobots && entries.length && /^https?:\/\//i.test(source)) {
+    const before = entries.length;
+    entries = await filterByRobots(entries, source);
+    process.stderr.write(`robots filter: ${before} → ${entries.length} entries\n`);
   }
 
   // 0.2+ filtering. Applied AFTER fetching the sitemap and BEFORE the

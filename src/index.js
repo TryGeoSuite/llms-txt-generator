@@ -4,6 +4,7 @@
 // Pipeline:
 //   loadSitemap(urlOrPath)  -> { type, entries }
 //   parseSitemap(xmlString) -> { type, entries }
+//   filterByRobots(entries, sitemapUrl, opts) -> filtered entries (optional)
 //   enrichEntry(entry, opts) -> entry with .title and .description
 //   groupByPrefix(entries)  -> Map<prefix, entries[]>
 //   renderLlmsTxt(groups, header) -> string
@@ -12,6 +13,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve as resolvePath } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { XMLParser } from 'fast-xml-parser';
+import { loadRobotsChecker } from './robots.js';
 
 const USER_AGENT = 'geosuite-llms-txt-generator/0.1.0';
 const DEFAULT_TIMEOUT_MS = 10_000;
@@ -92,6 +94,28 @@ export async function loadSitemap(urlOrPath) {
     xml = await readFile(abs, 'utf8');
   }
   return parseSitemap(xml);
+}
+
+/**
+ * Remove entries whose paths are disallowed for User-Agent: * in the site's
+ * robots.txt. Fails permissively: if robots.txt cannot be fetched or parsed,
+ * all entries are kept unchanged.
+ *
+ * @param {Array<{ loc: string }>} entries
+ * @param {string} sitemapUrl  Any URL from the same origin (used to derive /robots.txt).
+ * @param {{ timeoutMs?: number }} [opts]
+ * @returns {Promise<Array<{ loc: string }>>}
+ */
+export async function filterByRobots(entries, sitemapUrl, opts = {}) {
+  if (!entries.length) return entries;
+  const isAllowed = await loadRobotsChecker(sitemapUrl, opts);
+  return entries.filter((e) => {
+    try {
+      return isAllowed(new URL(e.loc).pathname);
+    } catch {
+      return true;
+    }
+  });
 }
 
 /**
