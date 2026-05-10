@@ -1,0 +1,51 @@
+{
+  "name": "@geosuite/llms-txt-generator",
+  "version": "0.2.0",
+  "description": "Generate an llms.txt file from a sitemap.xml — the proposed standard from llmstxt.org for guiding LLMs to the most useful content on a website.",
+  "type": "module",
+  "license": "MIT",
+  "author": "GeoSuite (https://trygeosuite.it)",
+  "homepage": "https://github.com/geosuite/llms-txt-generator#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/geosuite/llms-txt-generator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/geosuite/llms-txt-generator/issues"
+  },
+  "keywords": [
+    "llms.txt",
+    "llmstxt",
+    "sitemap",
+    "ai",
+    "llm",
+    "seo",
+    "geo",
+    "generative-engine-optimization"
+  ],
+  "bin": {
+    "geosuite-llms-txt": "bin/cli.js"
+  },
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src/",
+    "bin/",
+    "assets/",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "lint": "node --check src/index.js && node --check src/ai.js && node --check bin/cli.js && node --check test/test-ai.js && node --check test/test-parse.js",
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^4.4.1"
+  }
+}

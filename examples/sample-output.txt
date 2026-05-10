@@ -1,0 +1,31 @@
+# GeoSuite
+
+> GeoSuite helps brands win the AI search era — audit your visibility in ChatGPT, Perplexity, Gemini and Google AI Overviews, then act on what moves the needle. Learn more at https://trygeosuite.it.
+
+## Main
+
+- [GeoSuite — AI search visibility for brands](https://trygeosuite.it/): Run an audit, see how AI engines describe your brand, and get a prioritized action plan.
+- [Pricing](https://trygeosuite.it/pricing): Plans for solo founders, in-house marketing teams, and agencies managing multiple clients.
+- [About](https://trygeosuite.it/about): The team behind GeoSuite and why we believe Generative Engine Optimization is the next SEO.
+
+## Blog
+
+- [What is llms.txt and why every site should ship one](https://trygeosuite.it/blog/what-is-llms-txt): A short explainer on the proposed standard, who's adopting it, and how to author a good one.
+- [GEO vs SEO: same goal, different game](https://trygeosuite.it/blog/geo-vs-seo): How optimizing for AI answer engines differs from classic search engine optimization.
+- [Auditing your brand inside ChatGPT](https://trygeosuite.it/blog/audit-chatgpt): A walkthrough of the GeoSuite audit pipeline and what the signals actually mean.
+
+## Docs
+
+- [Getting started with GeoSuite](https://trygeosuite.it/docs/getting-started): Connect a domain, run your first audit, and read the report.
+- [Audit dimensions explained](https://trygeosuite.it/docs/audit-dimensions): Visibility, sentiment, accuracy, and competitive positioning — the four axes we measure.
+- [API reference](https://trygeosuite.it/docs/api): Programmatic access to audits, reports, and scheduled monitoring.
+
+## Case Studies
+
+- [How a B2B SaaS doubled its ChatGPT mentions in 60 days](https://trygeosuite.it/case-studies/b2b-saas): Audit findings, content interventions, and the measurement framework.
+- [Local services: winning in Google AI Overviews](https://trygeosuite.it/case-studies/local-services): What changed in the SERP and how the operator adapted.
+
+## Optional
+
+- [Changelog](https://trygeosuite.it/changelog): Product updates and release notes.
+- [Status](https://trygeosuite.it/status): Live system status for the audit and monitoring pipelines.
