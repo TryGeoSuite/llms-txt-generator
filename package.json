@@ -5,6 +5,9 @@
   "type": "module",
   "license": "MIT",
   "author": "GeoSuite (https://trygeosuite.it)",
+  "contributors": [
+    "Matteo Perino <matte97.p@gmail.com> (https://github.com/matte97p)"
+  ],
   "homepage": "https://github.com/geosuite/llms-txt-generator#readme",
   "repository": {
     "type": "git",

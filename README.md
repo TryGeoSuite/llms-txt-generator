@@ -208,6 +208,11 @@ turn it on against URLs you wouldn't paste into their UI.
 
 The same checks are also surfaced as a hosted product at [trygeosuite.it](https://trygeosuite.it) for teams who want history, alerts, and CTAs wired into their content pipeline.
 
+## Author
+
+Ideated, designed and validated by [Matteo Perino](https://github.com/matte97p) — [matte97.p@gmail.com](mailto:matte97.p@gmail.com).
+Implementation written with AI assistance, maintained under GeoSuite.
+
 ## License
 
 [MIT](LICENSE) © 2026 GeoSuite
