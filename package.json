@@ -8,13 +8,13 @@
   "contributors": [
     "Matteo Perino <matte97.p@gmail.com> (https://github.com/matte97p)"
   ],
-  "homepage": "https://github.com/geosuite/llms-txt-generator#readme",
+  "homepage": "https://github.com/TryGeoSuite/llms-txt-generator#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/geosuite/llms-txt-generator.git"
+    "url": "git+https://github.com/TryGeoSuite/llms-txt-generator.git"
   },
   "bugs": {
-    "url": "https://github.com/geosuite/llms-txt-generator/issues"
+    "url": "https://github.com/TryGeoSuite/llms-txt-generator/issues"
   },
   "keywords": [
     "llms.txt",

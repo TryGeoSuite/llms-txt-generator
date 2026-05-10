@@ -15,7 +15,7 @@ Thanks for your interest in improving `@geosuite/llms-txt-generator`.
 ## Local development
 
 ```bash
-git clone https://github.com/geosuite/llms-txt-generator
+git clone https://github.com/TryGeoSuite/llms-txt-generator
 cd llms-txt-generator
 npm install
 npm test
