@@ -4,9 +4,10 @@
   "description": "Generate an llms.txt file from a sitemap.xml — the proposed standard from llmstxt.org for guiding LLMs to the most useful content on a website.",
   "type": "module",
   "license": "MIT",
-  "author": "GeoSuite (https://trygeosuite.it)",
+  "author": "Matteo Perino <matte97.p@gmail.com> (https://github.com/matte97p)",
   "contributors": [
-    "Matteo Perino <matte97.p@gmail.com> (https://github.com/matte97p)"
+    "Matteo Perino <matte97.p@gmail.com> (https://github.com/matte97p)",
+    "GeoSuite (https://trygeosuite.it)"
   ],
   "homepage": "https://github.com/TryGeoSuite/llms-txt-generator#readme",
   "repository": {
@@ -47,8 +48,8 @@
   },
   "scripts": {
     "lint": "node --check src/index.js && node --check src/ai.js && node --check bin/cli.js && node --check test/test-ai.js && node --check test/test-parse.js",
-    "test": "node --test test/",
-    "coverage": "node --experimental-test-coverage --test test/"
+    "test": "node --test test/*.js",
+    "coverage": "node --experimental-test-coverage --test test/*.js"
   },
   "dependencies": {
     "fast-xml-parser": "^4.4.1"
