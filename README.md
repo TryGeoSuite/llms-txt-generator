@@ -10,6 +10,7 @@
 [![CI](https://github.com/TryGeoSuite/llms-txt-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/TryGeoSuite/llms-txt-generator/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@geosuite/llms-txt-generator.svg)](https://www.npmjs.com/package/@geosuite/llms-txt-generator)
 [![npm downloads](https://img.shields.io/npm/dm/@geosuite/llms-txt-generator.svg)](https://www.npmjs.com/package/@geosuite/llms-txt-generator)
+[![GitHub stars](https://img.shields.io/github/stars/TryGeoSuite/llms-txt-generator?style=flat&logo=github)](https://github.com/TryGeoSuite/llms-txt-generator/stargazers)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ---
@@ -219,3 +220,16 @@ Ideated, designed and validated by Matteo Perino. Implementation written with AI
 ## License
 
 [MIT](LICENSE) © 2026 Matteo Perino and GeoSuite
+
+## Related tools — the GeoSuite GEO toolkit
+
+- [ai-crawler-bots](https://github.com/TryGeoSuite/ai-crawler-bots) — which AI crawlers can read your site (robots.txt audit + CI gate)
+- [llms-txt-generator](https://github.com/TryGeoSuite/llms-txt-generator) — sitemap.xml → llms.txt (the llmstxt.org standard)
+- [schema-templates](https://github.com/TryGeoSuite/schema-templates) — validated, copy-paste schema.org JSON-LD
+- [sitemap-builder](https://github.com/TryGeoSuite/sitemap-builder) — crawl a site, emit a valid sitemap.xml
+
+Also from the same author: [rlsgrid](https://github.com/matte97p/rlsgrid) · [pentest-framework](https://github.com/matte97p/pentest-framework) · [demowright](https://github.com/matte97p/demowright)
+
+---
+
+⭐ If `llms-txt-generator` is useful, [give it a star](https://github.com/TryGeoSuite/llms-txt-generator) — it helps other people find the toolkit.
