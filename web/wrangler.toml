@@ -1,0 +1,13 @@
+name = "llmstxt-generator"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ⚠️ Deploy to your PERSONAL / GeoSuite Cloudflare account — NOT the work/Cato
+# one. `wrangler deploy` targets whichever account you're logged into (check
+# `wrangler whoami`) or CLOUDFLARE_ACCOUNT_ID. Pin it to be safe:
+# account_id = "<your-personal-cloudflare-account-id>"
+#
+# worker.js imports ../src/index.js, which pulls in fast-xml-parser — run
+# `npm install` at the repo root before `wrangler dev`/`deploy` so it's bundled.
+# nodejs_compat resolves the package's node:* imports (none run on this path).

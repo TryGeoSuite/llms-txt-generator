@@ -13,6 +13,10 @@
 [![GitHub stars](https://img.shields.io/github/stars/TryGeoSuite/llms-txt-generator?style=flat&logo=github)](https://github.com/TryGeoSuite/llms-txt-generator/stargazers)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+### ▶ [Try it live](https://llmstxt-generator.geosuite.workers.dev) — paste a site, get its `llms.txt`
+
+No install: it reads your `sitemap.xml` and renders an `llms.txt` you can copy or download. Or run the CLI below.
+
 ---
 
 ## What is `llms.txt`?

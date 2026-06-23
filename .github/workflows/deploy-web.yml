@@ -1,0 +1,45 @@
+name: Deploy web tool
+
+# Auto-deploys the hosted llms.txt generator (web/) to Cloudflare Workers on
+# every push to `main` that touches the Worker or the code/deps it bundles.
+# Manual runs via the Actions tab too.
+#
+# Requires two repo secrets (Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN   — token scoped "Edit Cloudflare Workers" from the
+#                            GeoSuite Cloudflare account (NOT a token pasted
+#                            anywhere; create a fresh, scoped one).
+#   CLOUDFLARE_ACCOUNT_ID  — that account's id.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - 'src/**'
+      - 'package.json'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    # Don't run in forks (they won't have the secrets).
+    if: github.repository == 'TryGeoSuite/llms-txt-generator'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The Worker bundles fast-xml-parser via ../src/index.js.
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: web
+          command: deploy
