@@ -1,6 +1,6 @@
 {
   "name": "@geosuite/llms-txt-generator",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Generate an llms.txt file from a sitemap.xml — the proposed standard from llmstxt.org for guiding LLMs to the most useful content on a website.",
   "type": "module",
   "license": "MIT",
