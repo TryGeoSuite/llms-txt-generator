@@ -3,6 +3,12 @@ main = "worker.js"
 compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+# Bundle the OG share image (1200×630 PNG) as an ArrayBuffer the Worker serves
+# at /og.png — no external host, CSP-safe.
+rules = [
+  { type = "Data", globs = ["**/*.png"], fallthrough = false }
+]
+
 # ⚠️ Deploy to your PERSONAL / GeoSuite Cloudflare account — NOT the work/Cato
 # one. `wrangler deploy` targets whichever account you're logged into (check
 # `wrangler whoami`) or CLOUDFLARE_ACCOUNT_ID. Pin it to be safe:
