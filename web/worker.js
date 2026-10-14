@@ -12,21 +12,37 @@
 //   GET /     → locale picked from Accept-Language (it → Italian, else English)
 //   GET /en   → English   |   GET /it → Italian
 // Asset routes:
-//   GET /og.png  /favicon.svg
+//   GET /og.png
+//   GET /favicon.png  /favicon.ico  /favicon.svg (old path)  /apple-touch-icon.png
+//                → GeoSuite's favicon (PNG)
+//   GET /logos/{chatgpt,gemini,perplexity}.svg → engine logos in the closing panel
 // API routes:
 //   GET /api/generate?url=...    → { site, count, truncated, llmstxt, error }
 
 import { parseSitemap, groupByPrefix, renderLlmsTxt } from '../src/index.js';
 import { renderPage } from './page.js';
 import OG_PNG from './og.png'; // bundled as ArrayBuffer via the wrangler "Data" rule
+import FAVICON_PNG from './favicon.png'; // GeoSuite's official favicon, 96px
+import TOUCH_ICON_PNG from './apple-touch-icon.png'; // same mark, 180px
+import LOGO_CHATGPT from './logos/chatgpt.svg'; // bundled as text via the "Text" rule
+import LOGO_GEMINI from './logos/gemini.svg';
+import LOGO_PERPLEXITY from './logos/perplexity.svg';
 
 const TIMEOUT_MS = 8000;
 const MAX_ENTRIES = 2000;
 const MAX_INDEX_CHILDREN = 10;
 const UA = 'llms-txt-generator-web/1.0 (+https://github.com/TryGeoSuite/llms-txt-generator)';
 
-// A geo "location pin" mark in the GeoSuite accent — inline SVG, no binary.
-const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0b0f17"/><path d="M32 13c-8.3 0-15 6.4-15 14.6C17 38 32 51 32 51s15-13 15-23.4C47 19.4 40.3 13 32 13z" fill="#5b8def"/><circle cx="32" cy="27.5" r="5.6" fill="#0b0f17"/></svg>`;
+// The engines named in the closing panel (theme.js ENGINES), same files as the hub.
+const ENGINE_LOGOS = { chatgpt: LOGO_CHATGPT, gemini: LOGO_GEMINI, perplexity: LOGO_PERPLEXITY };
+
+// Every favicon path answers with the PNG; /favicon.svg stays for cached links.
+const ICONS = {
+  '/favicon.png': FAVICON_PNG,
+  '/favicon.ico': FAVICON_PNG,
+  '/favicon.svg': FAVICON_PNG,
+  '/apple-touch-icon.png': TOUCH_ICON_PNG,
+};
 
 // '/it' → 'it', '/en' → 'en', '/' → first Accept-Language tag (it → 'it', else 'en').
 function pickLang(request, path) {
@@ -138,8 +154,14 @@ export default {
         headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' },
       });
     }
-    if (path === '/favicon.svg') {
-      return new Response(FAVICON, {
+    if (Object.hasOwn(ICONS, path)) {
+      return new Response(ICONS[path], {
+        headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' },
+      });
+    }
+    const logo = path.match(/^\/logos\/(chatgpt|gemini|perplexity)\.svg$/);
+    if (logo) {
+      return new Response(ENGINE_LOGOS[logo[1]], {
         headers: { 'content-type': 'image/svg+xml; charset=utf-8', 'cache-control': 'public, max-age=86400' },
       });
     }

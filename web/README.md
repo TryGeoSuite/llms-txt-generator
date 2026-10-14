@@ -6,7 +6,9 @@ reads the `sitemap.xml` and returns a ready-to-ship [`llms.txt`](https://llmstxt
 Same pipeline as the CLI (`parseSitemap → groupByPrefix → renderLlmsTxt`).
 
 - `GET /` — the page (`page.js`), bilingual **en/it** (auto-detected from `Accept-Language`; `/en` · `/it` force a locale)
-- `GET /og.png` · `GET /favicon.svg` — Open Graph share image (1200×630) + favicon
+- `GET /og.png` — Open Graph share image (1200×630)
+- `GET /favicon.png` · `/favicon.ico` · `/apple-touch-icon.png` — GeoSuite's favicon (PNG; the old `/favicon.svg` path serves it too)
+- `GET /logos/{chatgpt,gemini,perplexity}.svg` — engine logos shown in the page's closing panel
 - `GET /api/generate?url=https://example.com` — `{ site, count, truncated, llmstxt }`
 
 Structure-only (no per-page titles/descriptions — that's the CLI's `--enrich`,
