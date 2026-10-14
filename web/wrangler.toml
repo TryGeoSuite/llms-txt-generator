@@ -5,8 +5,11 @@ compatibility_flags = ["nodejs_compat"]
 
 # Bundle the OG share image (1200×630 PNG) as an ArrayBuffer the Worker serves
 # at /og.png — no external host, CSP-safe.
+# The favicon and apple-touch-icon PNGs ride the same rule.
 rules = [
-  { type = "Data", globs = ["**/*.png"], fallthrough = false }
+  { type = "Data", globs = ["**/*.png"], fallthrough = false },
+  # The AI engines' logos in the closing panel, copied from TryGeoSuite/geo-toolkit/logos.
+  { type = "Text", globs = ["**/*.svg"], fallthrough = false }
 ]
 
 # ⚠️ Deploy to your PERSONAL / GeoSuite Cloudflare account — NOT the work/Cato

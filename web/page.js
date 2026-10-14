@@ -2,81 +2,133 @@
 // and calls renderPage(lang); all user-facing copy lives in the S dictionary
 // below. Product/standard names (llms.txt, sitemap.xml, robots.txt) stay as-is.
 //
+// It wears GeoSuite's design (theme.js, copied from the hub at
+// tools.trygeosuite.it), so the tool and the hub read as one site.
+//
 // The page has interactive client-side JS that fetches /api/generate and builds
 // the result HTML. Its visitor-visible strings are localized via an I18N object
 // injected per-language into the inline <script> (see S[lang].js). API field
 // names, URLs and code are NOT translated.
 
+import { FONTS, BASE_CSS, ENGINES } from './theme.js';
+
 const BASE = 'https://llmstxt-generator.geosuite.workers.dev';
+const HUB = 'https://tools.trygeosuite.it';
+const GH = 'https://github.com/TryGeoSuite/llms-txt-generator';
+const NPM = 'https://www.npmjs.com/package/@geosuite/llms-txt-generator';
+const ANALYSIS = 'https://trygeosuite.it/analisi-gratuita?utm_source=geosuite-open&utm_medium=tool&utm_campaign=llmstxt-generator';
+const CMD = 'npx @geosuite/llms-txt-generator &lt;sitemap&gt;';
+
+// State icons, same drawing as the hub's check page. The circle takes the state
+// color from CSS; the text next to it always says the same thing.
+const ICONS = {
+  ok: '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9"/><path d="M6 10.5l2.6 2.6L14 7.7" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  partial: '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9"/><path d="M6 10h8" fill="none" stroke-width="2" stroke-linecap="round"/></svg>',
+  missing: '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="9"/><path d="M7 7l6 6M13 7l-6 6" fill="none" stroke-width="2" stroke-linecap="round"/></svg>',
+};
+
+// A short llms.txt, the shape the tool returns: shown next to the form.
+const SAMPLE = `# example.com
+
+## Blog
+
+- [What is llms.txt](https://example.com/blog/llms)
+- [GEO vs SEO](https://example.com/blog/geo)
+
+## Docs
+
+- [Getting started](https://example.com/docs/start)
+- [API reference](https://example.com/docs/api)`;
 
 const S = {
   en: {
-    title: 'llms.txt Generator — turn your sitemap into an llms.txt',
-    desc: 'Paste a site URL and get an llms.txt — the proposed standard that tells AI models which pages matter. Built from your sitemap.xml, in seconds.',
-    h1: '📄 llms.txt Generator',
-    lead: `Turn any site's <code>sitemap.xml</code> into an <a href="https://llmstxt.org/" target="_blank" rel="noopener" style="color:var(--accent)">llms.txt</a> — the curated index that tells AI models which pages matter.`,
-    promo: `<strong>Built by GeoSuite</strong> — the AI-visibility platform that measures &amp; improves how ChatGPT, Gemini, Claude &amp; Perplexity describe your brand.`,
-    cta: 'Explore GeoSuite →',
-    star: '★ Star on GitHub',
+    title: 'llms.txt Generator: turn your sitemap into an llms.txt',
+    desc: 'Paste a site URL and get an llms.txt, the proposed standard that tells AI models which pages matter. Built from your sitemap.xml, in seconds.',
+    tools: 'Free tools',
+    eyebrow: 'A free GeoSuite tool',
+    h1: 'Turn your sitemap into an llms.txt',
+    lead: `Paste a site and get its <a href="https://llmstxt.org/" target="_blank" rel="noopener">llms.txt</a>: the curated index that tells AI models which pages matter, built from your <code>sitemap.xml</code>.`,
+    label: 'Website or sitemap URL',
     placeholder: 'https://example.com',
     generate: 'Generate',
-    hint: `No login, no tracking. We fetch only your <code>sitemap.xml</code> (and child sitemaps). Titles &amp; descriptions need the CLI's <code>--enrich</code>.`,
-    footer: `Open source (MIT): <a href="https://github.com/TryGeoSuite/llms-txt-generator">GitHub</a>
-    · <a href="https://www.npmjs.com/package/@geosuite/llms-txt-generator">npm</a>
-    · <code>npx @geosuite/llms-txt-generator &lt;sitemap&gt;</code><br>
-    Built by <a href="https://github.com/matte97p">Matteo Perino</a> · a <a href="https://trygeosuite.it">GeoSuite</a> open-source tool.`,
+    facts: ['Free', 'No login, no tracking', 'Open source (MIT)'],
+    hint: `We fetch only your <code>sitemap.xml</code> (and its child sitemaps). For page titles and descriptions use the CLI with <code>--enrich</code>.`,
+    sampleLabel: 'What you get',
+    sampleMeta: 'llms.txt, grouped by section',
+    cliTitle: 'Run it from your terminal',
+    cliText: `The same generator as a zero-dependency CLI on npm. Add <code>--enrich</code> and it also reads each page for its title and description.`,
+    star: 'Star on GitHub',
+    copyLabel: 'Copy the command',
+    ctaTitle: 'Readable is step one. Recommended is the goal.',
+    ctaText: 'An llms.txt helps AI models find your best pages. GeoSuite asks ChatGPT, Gemini and Perplexity the questions your customers really ask, and tells you whether you are recommended, who wins instead and what to fix first. The report arrives by email.',
+    ctaButton: 'Get the free analysis',
+    footer: `Open source (MIT) by <a href="https://github.com/matte97p">Matteo Perino</a>, a <a href="https://trygeosuite.it">GeoSuite</a> tool. Code on <a href="${GH}">GitHub</a>, package on <a href="${NPM}">npm</a>.`,
     // Strings used by the inline client script.
     js: {
       forValue: 'llms.txt for ',
       pages: ' pages',
       sitemapIndex: ' (sitemap index)',
       copy: 'Copy',
-      copied: 'Copied ✓',
+      copied: 'Copied',
       download: 'Download',
-      truncatedPre: '⚠️ Large sitemap — showing the first ',
+      truncatedPre: 'Large sitemap: showing the first ',
       truncatedMid: ' of ',
       truncatedPost: ' URLs.',
       reading: 'Reading ',
-      readingSuffix: ' …',
-      networkError: 'Network error — try again.',
+      readingSuffix: '…',
+      networkError: 'Network error, try again.',
+      ready: 'Ready',
+      errorLabel: 'Error',
     },
   },
   it: {
-    title: 'Generatore llms.txt — trasforma la tua sitemap in un llms.txt',
-    desc: 'Incolla l\'URL di un sito e ottieni un llms.txt — lo standard proposto che dice ai modelli AI quali pagine contano. Costruito dal tuo sitemap.xml, in pochi secondi.',
-    h1: '📄 Generatore llms.txt',
-    lead: `Trasforma il <code>sitemap.xml</code> di qualsiasi sito in un <a href="https://llmstxt.org/" target="_blank" rel="noopener" style="color:var(--accent)">llms.txt</a> — l'indice curato che dice ai modelli AI quali pagine contano.`,
-    promo: `<strong>Creato da GeoSuite</strong> — la piattaforma di visibilità AI che misura e migliora come ChatGPT, Gemini, Claude e Perplexity descrivono il tuo brand.`,
-    cta: 'Scopri GeoSuite →',
-    star: '★ Stella su GitHub',
+    title: 'Generatore llms.txt: trasforma la tua sitemap in un llms.txt',
+    desc: 'Incolla l\'URL di un sito e ottieni un llms.txt, lo standard proposto che dice ai modelli AI quali pagine contano. Costruito dal tuo sitemap.xml in pochi secondi.',
+    tools: 'Strumenti gratuiti',
+    eyebrow: 'Uno strumento gratuito di GeoSuite',
+    h1: 'Trasforma la tua sitemap in un llms.txt',
+    lead: `Incolla un sito e ottieni il suo <a href="https://llmstxt.org/" target="_blank" rel="noopener">llms.txt</a>: l'indice curato che dice ai modelli AI quali pagine contano, costruito dal tuo <code>sitemap.xml</code>.`,
+    label: 'URL del sito o della sitemap',
     placeholder: 'https://esempio.it',
     generate: 'Genera',
-    hint: `Niente login, niente tracciamento. Scarichiamo solo il tuo <code>sitemap.xml</code> (e le sitemap figlie). Titoli e descrizioni richiedono il <code>--enrich</code> della CLI.`,
-    footer: `Open source (MIT): <a href="https://github.com/TryGeoSuite/llms-txt-generator">GitHub</a>
-    · <a href="https://www.npmjs.com/package/@geosuite/llms-txt-generator">npm</a>
-    · <code>npx @geosuite/llms-txt-generator &lt;sitemap&gt;</code><br>
-    Creato da <a href="https://github.com/matte97p">Matteo Perino</a> · uno strumento open-source <a href="https://trygeosuite.it">GeoSuite</a>.`,
+    facts: ['Gratis', 'Senza login né tracciamento', 'Open source (MIT)'],
+    hint: `Scarichiamo solo il tuo <code>sitemap.xml</code> (e le sitemap figlie). Per titoli e descrizioni delle pagine usa la CLI con <code>--enrich</code>.`,
+    sampleLabel: 'Cosa ottieni',
+    sampleMeta: 'llms.txt, diviso per sezioni',
+    cliTitle: 'Usalo dal terminale',
+    cliText: `Lo stesso generatore, come CLI su npm senza dipendenze. Con <code>--enrich</code> legge anche ogni pagina per prenderne titolo e descrizione.`,
+    star: 'Stella su GitHub',
+    copyLabel: 'Copia il comando',
+    ctaTitle: 'Farsi leggere è il primo passo. Farsi consigliare è l\'obiettivo.',
+    ctaText: 'Un llms.txt aiuta i modelli AI a trovare le tue pagine migliori. GeoSuite fa a ChatGPT, Gemini e Perplexity le domande che i tuoi clienti fanno davvero, e ti dice se ti consigliano, chi vince al posto tuo e cosa correggere per primo. Il report arriva via mail.',
+    ctaButton: 'Richiedi l\'analisi gratuita',
+    footer: `Open source (MIT) di <a href="https://github.com/matte97p">Matteo Perino</a>, uno strumento di <a href="https://trygeosuite.it">GeoSuite</a>. Codice su <a href="${GH}">GitHub</a>, pacchetto su <a href="${NPM}">npm</a>.`,
     // Strings used by the inline client script.
     js: {
       forValue: 'llms.txt per ',
       pages: ' pagine',
       sitemapIndex: ' (indice sitemap)',
       copy: 'Copia',
-      copied: 'Copiato ✓',
+      copied: 'Copiato',
       download: 'Scarica',
-      truncatedPre: '⚠️ Sitemap grande — mostro i primi ',
+      truncatedPre: 'Sitemap grande: mostro i primi ',
       truncatedMid: ' di ',
       truncatedPost: ' URL.',
       reading: 'Lettura di ',
-      readingSuffix: ' …',
-      networkError: 'Errore di rete — riprova.',
+      readingSuffix: '…',
+      networkError: 'Errore di rete, riprova.',
+      ready: 'Pronto',
+      errorLabel: 'Errore',
     },
   },
 };
 
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
 // lang: 'en' | 'it'.
 export function renderPage(lang) {
   const t = S[lang] || S.en;
+  const facts = t.facts.map((f) => `<li>${ICONS.ok}${f}</li>`).join('');
 
   return `<!doctype html>
 <html lang="${lang}">
@@ -89,7 +141,8 @@ export function renderPage(lang) {
 <link rel="alternate" hreflang="en" href="${BASE}/en">
 <link rel="alternate" hreflang="it" href="${BASE}/it">
 <link rel="alternate" hreflang="x-default" href="${BASE}/">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GeoSuite Open">
 <meta property="og:title" content="${t.title}">
@@ -103,98 +156,117 @@ export function renderPage(lang) {
 <meta name="twitter:title" content="${t.title}">
 <meta name="twitter:description" content="${t.desc}">
 <meta name="twitter:image" content="${BASE}/og.png">
+${FONTS}
 <style>
-  :root {
-    --bg: #0b0f17; --panel: #131a26; --line: #243042; --text: #e7edf5;
-    --muted: #8b9bb4; --accent: #5b8def; --green: #3fb96b;
+${BASE_CSS}
+  code { font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:.875em; }
+  .lead code, .note code, .cli p code { color:var(--ink); }
+  .note { color:var(--ink-3); font-size:.875rem; margin:12px 0 0; max-width:60ch; }
+  .hero > * { min-width:0; }
+  .sample { padding:20px; margin:0; }
+  .sample figcaption { display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; margin:0 0 12px; }
+  .sample pre { margin:0; }
+
+  pre.gen { margin:0; padding:14px 16px; border-radius:8px; background:var(--sunk); border:1px solid var(--line); color:var(--ink); overflow:auto; max-height:460px; font:.8125rem/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space:pre; }
+
+  #out { margin-top:32px; }
+  #out:empty { display:none; }
+  .result { padding:20px; }
+  .meta { display:flex; align-items:center; gap:8px 12px; flex-wrap:wrap; margin:0 0 14px; }
+  .meta h2 { margin:0; font-size:1.125rem; letter-spacing:-.01em; overflow-wrap:anywhere; }
+  .meta .sub { color:var(--ink-3); font-size:.875rem; font-variant-numeric:tabular-nums; }
+  .actions { display:flex; gap:8px; margin-left:auto; }
+  .state { display:inline-flex; align-items:center; gap:6px; font-size:.8125rem; font-weight:600; padding:2px 10px 2px 6px; border-radius:999px; }
+  .state svg, .notice svg { width:16px; height:16px; flex:none; }
+  .state svg path, .notice svg path { stroke:#fff; }
+  .state.ok { color:var(--ok); background:var(--ok-soft); } .state.ok svg circle { fill:var(--ok); }
+  .notice { display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border-radius:8px; font-size:.9375rem; color:var(--ink); margin:0 0 14px; }
+  .notice svg { margin-top:3px; }
+  .notice.warn { background:var(--warn-soft); border:1px solid var(--line); border-left:3px solid var(--warn); } .notice.warn svg circle { fill:var(--warn); }
+  .notice.crit { background:var(--crit-soft); border:1px solid var(--line); border-left:3px solid var(--crit); margin:0; overflow-wrap:anywhere; } .notice.crit svg circle { fill:var(--crit); }
+  .notice strong { font-weight:600; }
+  .loading { padding:18px 20px; display:flex; align-items:center; gap:12px; color:var(--ink-2); overflow-wrap:anywhere; }
+  .spinner { width:18px; height:18px; flex:none; border-radius:50%; border:2px solid var(--line-2); border-top-color:var(--accent); animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation:none; } }
+
+  .cli { margin-top:32px; padding:24px 28px; }
+  .cli h2 { font-size:1.25rem; line-height:1.25; letter-spacing:-.015em; margin:0 0 6px; }
+  .cli p { color:var(--ink-2); margin:0 0 16px; max-width:62ch; }
+  .cmd { display:flex; align-items:center; gap:8px; padding:4px 4px 4px 12px; background:var(--surface-2); border:1px solid var(--line); border-radius:8px; margin:0 0 16px; }
+  .cmd code { flex:1; min-width:0; overflow-x:auto; white-space:nowrap; color:var(--ink-2); font-size:.8125rem; padding:6px 0; }
+  .cmd button { flex:none; min-height:36px; padding:4px 12px; font-size:.8125rem; }
+  .links { display:flex; gap:8px; flex-wrap:wrap; }
+  .links a { text-decoration:none; display:inline-flex; align-items:center; gap:6px; }
+  .links svg { width:16px; height:16px; }
+  .cta { margin-top:16px; }
+  /* One column: once a result is on screen, the sample above it only pushes it down. */
+  @media (max-width:899px) { .hero:has(~ #out:not(:empty)) .sample { display:none; } }
+  @media (max-width:640px) {
+    .result, .sample { padding:16px; }
+    .cli { padding:20px; }
+    .actions { margin-left:0; width:100%; }
+    .actions .ghost { flex:1; }
   }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    -webkit-font-smoothing: antialiased;
-  }
-  .wrap { position: relative; max-width: 820px; margin: 0 auto; padding: 48px 20px 80px; }
-  .lang { position: absolute; top: 18px; right: 20px; display: flex; gap: 6px; font-size: .8rem; }
-  .lang a { color: var(--muted); text-decoration: none; padding: 4px 9px; border-radius: 7px; border: 1px solid transparent; }
-  .lang a.on { color: var(--text); border-color: var(--line); background: var(--panel); }
-  .lang a:hover { color: var(--text); }
-  header h1 { font-size: 1.7rem; margin: 0 0 6px; letter-spacing: -0.02em; }
-  header p { color: var(--muted); margin: 0 0 24px; }
-  .promo { margin: 0 0 26px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); display: flex; align-items: center; gap: 18px; justify-content: space-between; flex-wrap: wrap; }
-  .promo .txt { font-size: .98rem; color: var(--text); flex: 1; min-width: 220px; }
-  .promo .txt strong { color: var(--accent); }
-  .promo-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  .promo-cta { background: var(--accent); color: #fff; font-weight: 600; font-size: .95rem; padding: 11px 18px; border-radius: 10px; text-decoration: none; white-space: nowrap; }
-  .promo-cta:hover { opacity: .9; }
-  .gh { font-size: .95rem; font-weight: 600; padding: 9px 16px; border: 1px solid var(--accent); border-radius: 9px; color: var(--accent); text-decoration: none; white-space: nowrap; }
-  .gh:hover { background: var(--accent); color: #fff; }
-  form { display: flex; gap: 10px; margin-bottom: 8px; }
-  input[type=url] {
-    flex: 1; padding: 13px 15px; border-radius: 10px; border: 1px solid var(--line);
-    background: var(--panel); color: var(--text); font-size: 1rem; min-width: 0;
-  }
-  input[type=url]:focus { outline: none; border-color: var(--accent); }
-  button {
-    padding: 13px 20px; border-radius: 10px; border: 0; background: var(--accent);
-    color: #fff; font-size: 1rem; font-weight: 600; cursor: pointer; white-space: nowrap;
-  }
-  button:disabled { opacity: .55; cursor: default; }
-  .hint { color: var(--muted); font-size: .85rem; margin: 0 0 26px; }
-  #out { margin-top: 14px; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
-  .meta { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-  .meta h2 { margin: 0; font-size: 1.05rem; }
-  .meta .sub { color: var(--muted); font-size: .9rem; }
-  .actions { display: flex; gap: 8px; margin-left: auto; }
-  .actions button { font-size: .85rem; padding: 7px 13px; background: transparent; border: 1px solid var(--line); color: var(--text); }
-  .actions button:hover { border-color: var(--accent); color: var(--accent); }
-  pre.gen {
-    margin: 0; padding: 16px; border-radius: 10px; background: #0c121c; border: 1px solid var(--line);
-    overflow-x: auto; max-height: 460px; overflow-y: auto; font-size: .85rem; line-height: 1.5;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre; color: #cdd9ea;
-  }
-  .warn { margin: 0 0 14px; padding: 10px 13px; border-radius: 10px; font-size: .88rem; color: #e9d39b; background: rgba(214,178,84,.12); border: 1px solid rgba(214,178,84,.3); }
-  .err { color: #f2b6b1; }
-  .spin { color: var(--muted); }
-  footer { margin-top: 34px; color: var(--muted); font-size: .85rem; text-align: center; }
-  footer a { color: var(--accent); text-decoration: none; }
-  @media (max-width: 620px) { form { flex-direction: column; } .actions { margin-left: 0; } }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <nav class="lang" aria-label="Language">
-    <a href="/en"${lang === 'en' ? ' class="on"' : ''}>EN</a>
-    <a href="/it"${lang === 'it' ? ' class="on"' : ''}>IT</a>
-  </nav>
-  <header>
-    <h1>${t.h1}</h1>
-    <p>${t.lead}</p>
+  <header class="bar">
+    <a class="brand" href="https://trygeosuite.it">GeoSuite</a>
+    <nav aria-label="Site">
+      <a href="${HUB}/${lang}">${t.tools}</a>
+      <a href="/en"${lang === 'en' ? ' aria-current="page"' : ''} hreflang="en">EN</a>
+      <a href="/it"${lang === 'it' ? ' aria-current="page"' : ''} hreflang="it">IT</a>
+    </nav>
   </header>
 
-  <div class="promo">
-    <div class="txt">${t.promo}</div>
-    <div class="promo-actions">
-      <a class="promo-cta" href="https://trygeosuite.it" target="_blank" rel="noopener">${t.cta}</a>
-      <a class="gh" href="https://github.com/TryGeoSuite/llms-txt-generator" target="_blank" rel="noopener">${t.star}</a>
+  <main>
+    <div class="hero">
+      <div>
+        <p class="eyebrow">${t.eyebrow}</p>
+        <h1>${t.h1}</h1>
+        <p class="lead">${t.lead}</p>
+        <form class="urlform" id="f">
+          <label for="u">${t.label}</label>
+          <input id="u" name="url" type="text" inputmode="url" autocomplete="url" spellcheck="false" placeholder="${t.placeholder}">
+          <button class="primary" id="go" type="submit">${t.generate}</button>
+        </form>
+        <ul class="facts">${facts}</ul>
+        <p class="note">${t.hint}</p>
+      </div>
+      <figure class="panel sample">
+        <figcaption><span class="label">${t.sampleLabel}</span><span class="ex-meta">${t.sampleMeta}</span></figcaption>
+        <pre class="gen">${esc(SAMPLE)}</pre>
+      </figure>
     </div>
-  </div>
 
-  <form id="f">
-    <input id="u" type="url" inputmode="url" placeholder="${t.placeholder}" autocomplete="off" autofocus>
-    <button id="go" type="submit">${t.generate}</button>
-  </form>
-  <p class="hint">${t.hint}</p>
+    <div id="out" aria-live="polite"></div>
 
-  <div id="out"></div>
+    <section class="panel cli" aria-labelledby="cli-head">
+      <h2 id="cli-head">${t.cliTitle}</h2>
+      <p>${t.cliText}</p>
+      <div class="cmd"><code>${CMD}</code></div>
+      <div class="links">
+        <a class="ghost" href="${GH}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>${t.star}</a>
+        <a class="ghost" href="${NPM}" target="_blank" rel="noopener">npm</a>
+      </div>
+    </section>
 
-  <footer>
-    ${t.footer}
-  </footer>
+    <section class="panel cta">
+      <div>
+        <h2>${t.ctaTitle}</h2>
+        <p>${t.ctaText}</p>
+        ${ENGINES}
+      </div>
+      <a class="primary" href="${ANALYSIS}" target="_blank" rel="noopener">${t.ctaButton}</a>
+    </section>
+  </main>
+
+  <footer>${t.footer}</footer>
 </div>
 
-<script>var I18N = ${JSON.stringify(t.js)};</script>
+<script>var I18N = ${JSON.stringify(t.js)}; var ICONS = ${JSON.stringify(ICONS)}; var COPY_LABEL = ${JSON.stringify(t.copyLabel)};</script>
 <script>
   var out = document.getElementById('out');
   var input = document.getElementById('u');
@@ -204,34 +276,45 @@ export function renderPage(lang) {
   function esc(s){ return String(s).replace(/[&<>"]/g, function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 
+  function flash(b){
+    b.textContent = I18N.copied;
+    setTimeout(function(){ b.textContent = I18N.copy; }, 1500);
+  }
+
+  function errorBox(msg){
+    // The API joins cause and detail with a long dash: show a colon instead.
+    msg = String(msg).replace(/\\s*\\u2014\\s*/g, ': ');
+    return '<div class="notice crit" role="alert">' + ICONS.missing +
+      '<span><strong>' + I18N.errorLabel + ':</strong> ' + esc(msg) + '</span></div>';
+  }
+
   function render(r){
     if (r.error){
-      out.innerHTML = '<div class="card err">' + esc(r.error) + '</div>';
+      out.innerHTML = errorBox(r.error);
       return;
     }
     lastText = r.llmstxt || '';
     var warn = r.truncated
-      ? '<div class="warn">' + I18N.truncatedPre + r.count + I18N.truncatedMid + r.total + I18N.truncatedPost + '</div>'
+      ? '<div class="notice warn">' + ICONS.partial + '<span>' + I18N.truncatedPre + r.count + I18N.truncatedMid + r.total + I18N.truncatedPost + '</span></div>'
       : '';
     out.innerHTML =
-      warn +
-      '<div class="card">' +
+      '<div class="panel result">' +
+        warn +
         '<div class="meta">' +
+          '<span class="state ok">' + ICONS.ok + I18N.ready + '</span>' +
           '<h2>' + I18N.forValue + esc(r.site) + '</h2>' +
           '<span class="sub">' + r.count + I18N.pages + (r.isIndex ? I18N.sitemapIndex : '') + '</span>' +
           '<span class="actions">' +
-            '<button id="copy" type="button">' + I18N.copy + '</button>' +
-            '<button id="dl" type="button">' + I18N.download + '</button>' +
+            '<button class="ghost" id="copy" type="button">' + I18N.copy + '</button>' +
+            '<button class="ghost" id="dl" type="button">' + I18N.download + '</button>' +
           '</span>' +
         '</div>' +
         '<pre class="gen">' + esc(lastText) + '</pre>' +
       '</div>';
 
     document.getElementById('copy').addEventListener('click', function(){
-      navigator.clipboard.writeText(lastText).then(function(){
-        var b = document.getElementById('copy'); b.textContent = I18N.copied;
-        setTimeout(function(){ b.textContent = I18N.copy; }, 1500);
-      });
+      var b = this;
+      navigator.clipboard.writeText(lastText).then(function(){ flash(b); });
     });
     document.getElementById('dl').addEventListener('click', function(){
       var blob = new Blob([lastText], { type: 'text/plain' });
@@ -245,11 +328,11 @@ export function renderPage(lang) {
   function run(url){
     if (!url) return;
     btn.disabled = true;
-    out.innerHTML = '<div class="card spin">' + I18N.reading + esc(url) + I18N.readingSuffix + '</div>';
+    out.innerHTML = '<div class="panel loading"><span class="spinner" aria-hidden="true"></span><span>' + I18N.reading + esc(url) + I18N.readingSuffix + '</span></div>';
     fetch('/api/generate?url=' + encodeURIComponent(url))
       .then(function(res){ return res.json(); })
       .then(function(r){ render(r); })
-      .catch(function(){ out.innerHTML = '<div class="card err">' + I18N.networkError + '</div>'; })
+      .catch(function(){ out.innerHTML = errorBox(I18N.networkError); })
       .finally(function(){ btn.disabled = false; });
   }
 
@@ -258,6 +341,19 @@ export function renderPage(lang) {
     var url = input.value.trim();
     if (url){ history.replaceState(null, '', '?url=' + encodeURIComponent(url)); run(url); }
   });
+
+  // The npx command: a copy button, only where the clipboard API exists.
+  if (navigator.clipboard) {
+    document.querySelectorAll('.cmd').forEach(function(box){
+      var cmd = box.querySelector('code').textContent.trim();
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'ghost'; b.textContent = I18N.copy; b.setAttribute('aria-label', COPY_LABEL);
+      b.addEventListener('click', function(){
+        navigator.clipboard.writeText(cmd).then(function(){ flash(b); }).catch(function(){});
+      });
+      box.appendChild(b);
+    });
+  }
 
   var shared = new URLSearchParams(location.search).get('url');
   if (shared){ input.value = shared; run(shared); }
