@@ -102,7 +102,8 @@ flat sitemap and the tool will fetch the child sitemaps for you.
 | `--out=<path>` | stdout | Write the rendered file to this path instead of stdout. |
 | `--enrich` | off | Fetch each URL once to extract `<title>` and meta description. Best-effort: failures and non-HTML responses are silently skipped. |
 | `--concurrency=<n>` | `5` | Parallel HTTP requests when `--enrich` is set. Clamped to `[1, 64]`. |
-| `--max-entries=<n>` | unlimited | Cap on the number of URLs processed. Useful for huge sitemaps or quick iteration. |
+| `--max-entries=<n>` | unlimited | Cap on the number of URLs processed. Useful for huge sitemaps or quick iteration. Repeated URLs are always dropped first. |
+| `--format=<style>` | `full` | `full` (link and description), `compact` (link only) or `sections-only` (number of entries per section). |
 | `--help`, `-h` | — | Print usage and exit. |
 
 When `--enrich` is on, requests use `User-Agent: geosuite-llms-txt-generator/0.1.0`
@@ -147,9 +148,18 @@ URLs are grouped by their first path segment:
 - `https://site.com/` → section `Main`
 - `https://site.com/blog/anything` → section `Blog`
 - `https://site.com/case-studies/x` → section `Case Studies` (kebab-case is title-cased)
+- `https://site.com/FAQ` → section `FAQ` (only the first letter of each word changes)
+- `https://site.com/perch%C3%A9/x` → section `Perché` (percent-encoding is decoded)
 
-Within a section, entries appear in sitemap order. The `Main` section is
-always rendered first; remaining sections are sorted alphabetically.
+Within a section, entries appear in sitemap order, each URL once. The `Main`
+section is always rendered first; remaining sections are sorted by code point
+(so `Zeta` comes before `about`), the same on every machine.
+
+The [GeoSuite](https://trygeosuite.it) platform's llms.txt Studio builds the
+file with the same rules: both run the cases in
+`test/fixtures/golden-llms-txt.json`, so the same sitemap gives the same
+llms.txt. The hosted page also uses the platform's limits: 100 URLs by default
+(at most 500) and the first 20 child sitemaps of an index.
 
 ## Programmatic API
 

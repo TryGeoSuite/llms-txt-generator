@@ -9,7 +9,7 @@ Same pipeline as the CLI (`parseSitemap → groupByPrefix → renderLlmsTxt`).
 - `GET /og.png` — Open Graph share image (1200×630)
 - `GET /favicon.png` · `/favicon.ico` · `/apple-touch-icon.png` — GeoSuite's favicon (PNG; the old `/favicon.svg` path serves it too)
 - `GET /logos/{chatgpt,gemini,perplexity}.svg` — engine logos shown in the page's closing panel
-- `GET /api/generate?url=https://example.com` — `{ site, count, truncated, llmstxt }`
+- `GET /api/generate?url=https://example.com` (optional `max_entries`, default 100, at most 500; optional `format`: `full`, `compact`, `sections-only`): `{ site, count, total, truncated, llmstxt }`
 
 Structure-only (no per-page titles/descriptions — that's the CLI's `--enrich`,
 which fetches every page). No database, no tracking: it fetches only the
@@ -51,7 +51,10 @@ Add two repo secrets (Settings → Secrets and variables → Actions):
 - `nodejs_compat` lets the package's `node:*` imports resolve at bundle time —
   none run on this path; the sitemap download uses the platform `fetch()`.
   `fast-xml-parser` is bundled (hence `npm install` before deploy).
-- Large sitemaps are capped (first 2000 URLs; first 10 child sitemaps of an
-  index) to keep responses fast.
+- The limits are the GeoSuite platform's, so the page and the platform's
+  llms.txt Studio return the same file for the same site: 100 URLs by default
+  (`max_entries`, at most 500), repeated URLs dropped, the first 20 child
+  sitemaps of an index. `test/golden.test.js` runs the shared cases in
+  `test/fixtures/golden-llms-txt.json`, which the platform runs too.
 - This directory is **not** part of the npm package, so it never ships to
   registry consumers.

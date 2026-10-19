@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Changed
+
+- Same llms.txt as the GeoSuite platform's llms.txt Studio for the same
+  sitemap, checked by golden cases both repos run
+  (`test/fixtures/golden-llms-txt.json`, `test/golden.test.js`).
+- Sections are sorted by code point (was locale order) and their names are
+  percent-decoded; empty words in a slug are dropped (`a--b` is `A B`).
+- Repeated URLs are dropped before the `--max-entries` cap (`selectEntries`).
+- Summary and link text are kept on one line, so a title with a line break no
+  longer breaks the list item.
+- Page titles and descriptions decode numeric entities and the common named
+  ones (accented vowels, quotes, dashes); the extraction is `extractPageMeta`.
+- An empty `<urlset>` is a sitemap with no entries (was an error); values stay
+  strings even when they look like numbers.
+- `--respect-robots` follows `Allow` rules and groups of several `User-agent`
+  lines (longest match wins, `Allow` on a tie).
+- Sitemap indexes read at most 20 child sitemaps.
+
+### Added
+
+- `--format=full|compact|sections-only`, and `filterByPrefix` in the API.
+- Hosted page: the platform's limits (100 URLs by default, `max_entries` up
+  to 500, 20 child sitemaps read in parallel, 12 s per sitemap) and a
+  `format` parameter on `/api/generate`.
+
 ## 0.3.2 — 2026-05-23
 
 ### Fixed

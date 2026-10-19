@@ -3,10 +3,20 @@
 //
 // Usage:
 //   geosuite-llms-txt <sitemap> [--name=...] [--summary=...] [--out=...] [--enrich] \
-//                     [--concurrency=5] [--max-entries=N] [--help]
+//                     [--concurrency=5] [--max-entries=N] [--format=full] [--help]
 
 import { writeFile } from 'node:fs/promises';
-import { loadSitemap, filterByRobots, enrichEntry, groupByPrefix, renderLlmsTxt } from '../src/index.js';
+import {
+  loadSitemap,
+  filterByRobots,
+  filterByPrefix,
+  selectEntries,
+  enrichEntry,
+  groupByPrefix,
+  renderLlmsTxt,
+  FORMATS,
+  MAX_INDEX_CHILDREN,
+} from '../src/index.js';
 import { chat, detectProvider } from '../src/ai.js';
 
 const HELP = `geosuite-llms-txt — generate an llms.txt from a sitemap.xml
@@ -25,6 +35,9 @@ OPTIONS
   --enrich             Fetch each URL to extract <title> and <meta name=description>.
   --concurrency=<n>    Parallel fetches when --enrich is set. Default: 5.
   --max-entries=<n>    Cap the number of entries processed. Default: unlimited.
+                       Repeated URLs are always dropped (the first one wins).
+  --format=<style>     full (link + description, default), compact (link
+                       only) or sections-only (entry count per section).
   --include-only=<patterns>
                        (0.2+) Comma-separated path prefixes; only URLs whose
                        path starts with one of them are kept. Example:
@@ -62,6 +75,11 @@ async function main(argv) {
   const respectRobots = !!args['respect-robots'];
   const concurrency = clampInt(args.concurrency, 1, 64, 5);
   const maxEntries = args['max-entries'] ? clampInt(args['max-entries'], 1, 1_000_000, null) : null;
+  const format = args.format || 'full';
+  if (!FORMATS.includes(format)) {
+    process.stderr.write(`error: --format must be one of ${FORMATS.join(', ')}.\n`);
+    process.exit(2);
+  }
 
   if (useAi && !detectProvider()) {
     process.stderr.write(
@@ -75,10 +93,10 @@ async function main(argv) {
   if (type === 'sitemapindex') {
     process.stderr.write(
       `note: input is a sitemap-index with ${entries.length} child sitemap(s); ` +
-        `flattening one level...\n`,
+        `flattening one level (first ${MAX_INDEX_CHILDREN})...\n`,
     );
     const all = [];
-    for (const child of entries) {
+    for (const child of entries.slice(0, MAX_INDEX_CHILDREN)) {
       try {
         const sub = await loadSitemap(child.loc);
         if (sub.type === 'sitemap') all.push(...sub.entries);
@@ -103,15 +121,13 @@ async function main(argv) {
   const excludePrefixes = parsePatterns(args['exclude-patterns']);
   if (includePrefixes.length || excludePrefixes.length) {
     const before = entries.length;
-    entries = entries.filter((e) => keepEntry(e.loc, includePrefixes, excludePrefixes));
+    entries = filterByPrefix(entries, includePrefixes, excludePrefixes);
     process.stderr.write(
       `filtered ${before} → ${entries.length} entries (include=${includePrefixes.length}, exclude=${excludePrefixes.length})\n`,
     );
   }
 
-  if (maxEntries != null && entries.length > maxEntries) {
-    entries = entries.slice(0, maxEntries);
-  }
+  ({ entries } = selectEntries(entries, maxEntries));
 
   if (enrich) {
     process.stderr.write(`enriching ${entries.length} entries (concurrency=${concurrency})...\n`);
@@ -133,7 +149,7 @@ async function main(argv) {
   }
 
   const groups = groupByPrefix(entries);
-  const output = renderLlmsTxt(groups, { name, summary });
+  const output = renderLlmsTxt(groups, { name, summary, format });
 
   if (outPath) {
     await writeFile(outPath, output, 'utf8');
@@ -175,23 +191,6 @@ function parsePatterns(value) {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-}
-
-function keepEntry(loc, includes, excludes) {
-  let path;
-  try {
-    path = new URL(loc).pathname || '/';
-  } catch {
-    return false;
-  }
-  for (const prefix of excludes) {
-    if (path.startsWith(prefix)) return false;
-  }
-  if (includes.length === 0) return true;
-  for (const prefix of includes) {
-    if (path.startsWith(prefix)) return true;
-  }
-  return false;
 }
 
 async function runWithConcurrency(items, limit, worker) {
