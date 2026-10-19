@@ -1,0 +1,443 @@
+{
+  "about": "Golden cases for llms.txt generation, shared by TryGeoSuite/llms-txt-generator (test/fixtures/golden-llms-txt.json, run by test/golden.test.js) and the GeoSuite platform (geo: backend/tests/fixtures/golden-llms-txt.json, run by backend/tests/tools/test_llms_txt_golden.py). The two files must stay identical. render = selectEntries/select_entries (dedupe, cap) then group and render. robots = the Allow/Disallow verdict per path for the given agent. After an intended change: node scripts/update-golden.mjs in the package, review the diff, copy the file to geo, make the Python side pass.",
+  "parse": [
+    {
+      "name": "flat urlset with lastmod, whitespace and an empty loc",
+      "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n  <url><loc>https://example.com/</loc><lastmod>2026-01-15</lastmod></url>\n  <url><loc>\n    https://example.com/blog/post-one\n  </loc></url>\n  <url><loc></loc></url>\n  <url><loc>https://example.com/shop?cat=1&amp;page=2</loc><lastmod>2026</lastmod></url>\n</urlset>\n",
+      "expected": {
+        "kind": "sitemap",
+        "entries": [
+          {
+            "loc": "https://example.com/",
+            "lastmod": "2026-01-15"
+          },
+          {
+            "loc": "https://example.com/blog/post-one",
+            "lastmod": null
+          },
+          {
+            "loc": "https://example.com/shop?cat=1&page=2",
+            "lastmod": "2026"
+          }
+        ]
+      }
+    },
+    {
+      "name": "sitemap index",
+      "xml": "<?xml version=\"1.0\"?>\n<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n  <sitemap><loc>https://example.com/sitemap-pages.xml</loc><lastmod>2026-02-01</lastmod></sitemap>\n  <sitemap><loc> https://example.com/sitemap-posts.xml </loc></sitemap>\n</sitemapindex>\n",
+      "expected": {
+        "kind": "sitemapindex",
+        "entries": [
+          {
+            "loc": "https://example.com/sitemap-pages.xml",
+            "lastmod": "2026-02-01"
+          },
+          {
+            "loc": "https://example.com/sitemap-posts.xml",
+            "lastmod": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "empty urlset",
+      "xml": "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\"></urlset>",
+      "expected": {
+        "kind": "sitemap",
+        "entries": []
+      }
+    },
+    {
+      "name": "self-closing urlset",
+      "xml": "<urlset/>",
+      "expected": {
+        "kind": "sitemap",
+        "entries": []
+      }
+    },
+    {
+      "name": "CDATA loc",
+      "xml": "<urlset><url><loc><![CDATA[https://example.com/a?x=1&y=2]]></loc></url></urlset>",
+      "expected": {
+        "kind": "sitemap",
+        "entries": [
+          {
+            "loc": "https://example.com/a?x=1&y=2",
+            "lastmod": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "image extension children are ignored",
+      "xml": "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\" xmlns:image=\"http://www.google.com/schemas/sitemap-image/1.1\"><url><loc>https://example.com/p</loc><image:image><image:loc>https://example.com/p.jpg</image:loc></image:image></url></urlset>",
+      "expected": {
+        "kind": "sitemap",
+        "entries": [
+          {
+            "loc": "https://example.com/p",
+            "lastmod": null
+          }
+        ]
+      }
+    },
+    {
+      "name": "an HTML page is not a sitemap",
+      "xml": "<!doctype html><html><head><title>Not found</title></head><body>404</body></html>",
+      "expected": {
+        "error": true
+      }
+    },
+    {
+      "name": "another root element is not a sitemap",
+      "xml": "<?xml version=\"1.0\"?><rss><channel><title>x</title></channel></rss>",
+      "expected": {
+        "error": true
+      }
+    }
+  ],
+  "page_meta": [
+    {
+      "name": "title with tags, newlines and entities; description after content",
+      "html": "<html><head><title>\n  Caff&egrave; &amp; <b>Pasticceria</b>\n  &#8220;Roma&#x201D; dal 1950\n</title><meta content=\"Il bar  pi&ugrave;\n antico &laquo;di Roma&raquo;\" name=\"description\"></head></html>",
+      "expected": {
+        "title": "Caffè & Pasticceria “Roma” dal 1950",
+        "description": "Il bar più antico «di Roma»"
+      }
+    },
+    {
+      "name": "description first, no title, nbsp",
+      "html": "<head><meta name=\"description\" content=\"One&nbsp;line &quot;quoted&quot; &#39;s\"></head>",
+      "expected": {
+        "title": null,
+        "description": "One line \"quoted\" 's"
+      }
+    },
+    {
+      "name": "empty title and empty description",
+      "html": "<title>   </title><meta name='description' content=''>",
+      "expected": {
+        "title": null,
+        "description": null
+      }
+    },
+    {
+      "name": "no head at all",
+      "html": "just text",
+      "expected": {
+        "title": null,
+        "description": null
+      }
+    }
+  ],
+  "render": [
+    {
+      "name": "sections, ordering, decoding, duplicates and one-line text",
+      "site_name": "Example",
+      "summary": "Two lines\nof summary",
+      "format": "full",
+      "max_entries": 100,
+      "entries": [
+        {
+          "loc": "https://example.com/"
+        },
+        {
+          "loc": "https://example.com/blog/intro-to-llms-txt",
+          "title": "Intro to\n llms.txt [guide]",
+          "description": "Why the format\n exists."
+        },
+        {
+          "loc": "https://example.com/case-studies/acme_corp"
+        },
+        {
+          "loc": "https://example.com/FAQ"
+        },
+        {
+          "loc": "https://example.com/about"
+        },
+        {
+          "loc": "https://example.com/Zeta/x"
+        },
+        {
+          "loc": "https://example.com/a--b/c"
+        },
+        {
+          "loc": "https://example.com/perch%C3%A9/caff%C3%A8-bar"
+        },
+        {
+          "loc": "https://example.com/perché/due"
+        },
+        {
+          "loc": "https://example.com/blog/intro-to-llms-txt",
+          "title": "Duplicate, dropped"
+        },
+        {
+          "loc": "https://example.com/blog/",
+          "title": "",
+          "description": "Blog index"
+        },
+        {
+          "loc": "not a url"
+        }
+      ],
+      "expected": {
+        "content": "# Example\n\n> Two lines of summary\n\n## Main\n\n- [example.com](https://example.com/)\n- [not a url](not a url)\n\n## FAQ\n\n- [FAQ](https://example.com/FAQ)\n\n## Zeta\n\n- [x](https://example.com/Zeta/x)\n\n## A B\n\n- [c](https://example.com/a--b/c)\n\n## About\n\n- [about](https://example.com/about)\n\n## Blog\n\n- [Intro to llms.txt \\[guide\\]](https://example.com/blog/intro-to-llms-txt): Why the format exists.\n- [blog](https://example.com/blog/): Blog index\n\n## Case Studies\n\n- [acme corp](https://example.com/case-studies/acme_corp)\n\n## Perché\n\n- [caffè bar](https://example.com/perch%C3%A9/caff%C3%A8-bar)\n- [due](https://example.com/perché/due)\n",
+        "entries_count": 11,
+        "truncated": false
+      }
+    },
+    {
+      "name": "compact drops descriptions",
+      "site_name": "Shop",
+      "summary": null,
+      "format": "compact",
+      "max_entries": 100,
+      "entries": [
+        {
+          "loc": "https://shop.it/prodotti/scarpe",
+          "title": "Scarpe",
+          "description": "Le nostre scarpe"
+        },
+        {
+          "loc": "https://shop.it/",
+          "title": "Home",
+          "description": "Benvenuti"
+        }
+      ],
+      "expected": {
+        "content": "# Shop\n\n## Main\n\n- [Home](https://shop.it/)\n\n## Prodotti\n\n- [Scarpe](https://shop.it/prodotti/scarpe)\n",
+        "entries_count": 2,
+        "truncated": false
+      }
+    },
+    {
+      "name": "sections-only counts entries",
+      "site_name": "Shop",
+      "summary": "Negozio online",
+      "format": "sections-only",
+      "max_entries": 100,
+      "entries": [
+        {
+          "loc": "https://shop.it/"
+        },
+        {
+          "loc": "https://shop.it/prodotti/a"
+        },
+        {
+          "loc": "https://shop.it/prodotti/b"
+        },
+        {
+          "loc": "https://shop.it/blog/c"
+        }
+      ],
+      "expected": {
+        "content": "# Shop\n\n> Negozio online\n\n## Main\n\n- 1 entries\n\n## Blog\n\n- 1 entries\n\n## Prodotti\n\n- 2 entries\n",
+        "entries_count": 4,
+        "truncated": false
+      }
+    },
+    {
+      "name": "cap applies after dropping duplicates",
+      "site_name": null,
+      "summary": null,
+      "format": "full",
+      "max_entries": 3,
+      "entries": [
+        {
+          "loc": "https://x.com/a"
+        },
+        {
+          "loc": "https://x.com/a"
+        },
+        {
+          "loc": "https://x.com/b"
+        },
+        {
+          "loc": "https://x.com/c"
+        },
+        {
+          "loc": "https://x.com/d"
+        }
+      ],
+      "expected": {
+        "content": "# Website\n\n## A\n\n- [a](https://x.com/a)\n\n## B\n\n- [b](https://x.com/b)\n\n## C\n\n- [c](https://x.com/c)\n",
+        "entries_count": 3,
+        "truncated": true
+      }
+    },
+    {
+      "name": "unknown format renders full",
+      "site_name": "X",
+      "summary": null,
+      "format": "fancy",
+      "max_entries": 10,
+      "entries": [
+        {
+          "loc": "https://x.com/docs/start",
+          "title": "Start",
+          "description": "How to start"
+        }
+      ],
+      "expected": {
+        "content": "# X\n\n## Docs\n\n- [Start](https://x.com/docs/start): How to start\n",
+        "entries_count": 1,
+        "truncated": false
+      }
+    },
+    {
+      "name": "no entries",
+      "site_name": "Empty",
+      "summary": null,
+      "format": "full",
+      "max_entries": 100,
+      "entries": [],
+      "expected": {
+        "content": "# Empty\n",
+        "entries_count": 0,
+        "truncated": false
+      }
+    }
+  ],
+  "robots": [
+    {
+      "name": "consecutive user-agent lines share a group",
+      "agent": "*",
+      "robots_txt": "User-agent: *\nUser-agent: Googlebot\nDisallow: /private\n",
+      "paths": [
+        "/private/x",
+        "/public"
+      ],
+      "expected": {
+        "/private/x": false,
+        "/public": true
+      }
+    },
+    {
+      "name": "longest match wins, Allow on a tie",
+      "agent": "*",
+      "robots_txt": "User-agent: *\nDisallow: /shop\nAllow: /shop/public\nDisallow: /page\nAllow: /page\n",
+      "paths": [
+        "/shop/x",
+        "/shop/public/a",
+        "/page",
+        "/pages"
+      ],
+      "expected": {
+        "/shop/x": false,
+        "/shop/public/a": true,
+        "/page": true,
+        "/pages": true
+      }
+    },
+    {
+      "name": "wildcards and end anchor",
+      "agent": "*",
+      "robots_txt": "User-agent: *\nDisallow: /*.pdf$\nDisallow: /*?\nDisallow: /tmp*/cache\n",
+      "paths": [
+        "/a/b.pdf",
+        "/a/b.pdfx",
+        "/tmp1/cache/x",
+        "/tmp/x"
+      ],
+      "expected": {
+        "/a/b.pdf": false,
+        "/a/b.pdfx": true,
+        "/tmp1/cache/x": false,
+        "/tmp/x": true
+      }
+    },
+    {
+      "name": "empty Disallow allows everything",
+      "agent": "*",
+      "robots_txt": "User-agent: *\nDisallow:\n",
+      "paths": [
+        "/",
+        "/anything"
+      ],
+      "expected": {
+        "/": true,
+        "/anything": true
+      }
+    },
+    {
+      "name": "a group for another bot does not apply to *",
+      "agent": "*",
+      "robots_txt": "User-agent: GPTBot\nDisallow: /\n",
+      "paths": [
+        "/",
+        "/x"
+      ],
+      "expected": {
+        "/": true,
+        "/x": true
+      }
+    },
+    {
+      "name": "named agent group wins over *",
+      "agent": "GPTBot",
+      "robots_txt": "User-agent: *\nDisallow: /\n\nUser-agent: gptbot\nAllow: /\nDisallow: /secret\n",
+      "paths": [
+        "/",
+        "/secret/a"
+      ],
+      "expected": {
+        "/": true,
+        "/secret/a": false
+      }
+    },
+    {
+      "name": "percent-encoding is decoded on both sides",
+      "agent": "*",
+      "robots_txt": "User-agent: *\nDisallow: /caf%C3%A9\n",
+      "paths": [
+        "/café/menu",
+        "/caf%C3%A9/menu",
+        "/cafe"
+      ],
+      "expected": {
+        "/café/menu": false,
+        "/caf%C3%A9/menu": false,
+        "/cafe": true
+      }
+    },
+    {
+      "name": "rules before any user-agent are ignored, comments stripped",
+      "agent": "*",
+      "robots_txt": "Disallow: /early\n# comment\nUser-agent: * # everyone\nDisallow: /late # trailing\n",
+      "paths": [
+        "/early",
+        "/late"
+      ],
+      "expected": {
+        "/early": true,
+        "/late": false
+      }
+    },
+    {
+      "name": "the first * group with a matching rule decides",
+      "agent": "*",
+      "robots_txt": "User-agent: *\nDisallow: /a\n\nUser-agent: *\nAllow: /a/b\n",
+      "paths": [
+        "/a/b",
+        "/a/c"
+      ],
+      "expected": {
+        "/a/b": false,
+        "/a/c": false
+      }
+    },
+    {
+      "name": "non-rule lines do not split a group",
+      "agent": "*",
+      "robots_txt": "User-agent: bingbot\nCrawl-delay: 5\nUser-agent: *\nDisallow: /x\nSitemap: https://example.com/sitemap.xml\n",
+      "paths": [
+        "/x",
+        "/y"
+      ],
+      "expected": {
+        "/x": false,
+        "/y": true
+      }
+    }
+  ]
+}

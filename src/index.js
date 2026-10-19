@@ -5,9 +5,16 @@
 //   loadSitemap(urlOrPath)  -> { type, entries }
 //   parseSitemap(xmlString) -> { type, entries }
 //   filterByRobots(entries, sitemapUrl, opts) -> filtered entries (optional)
+//   filterByPrefix(entries, include, exclude) -> filtered entries (optional)
+//   selectEntries(entries, maxEntries) -> { entries, total, truncated }
 //   enrichEntry(entry, opts) -> entry with .title and .description
 //   groupByPrefix(entries)  -> Map<prefix, entries[]>
 //   renderLlmsTxt(groups, header) -> string
+//
+// The GeoSuite platform runs the same pipeline in Python
+// (backend/services/tools/llms_txt_service.py). Both sides run the cases in
+// test/fixtures/golden-llms-txt.json, so a change that makes them disagree
+// fails a test on the side that drifted.
 
 import { readFile } from 'node:fs/promises';
 import { resolve as resolvePath } from 'node:path';
@@ -18,9 +25,21 @@ import { loadRobotsChecker } from './robots.js';
 const USER_AGENT = 'geosuite-llms-txt-generator/0.1.0';
 const DEFAULT_TIMEOUT_MS = 10_000;
 
+// A sitemap index is flattened one level, reading at most this many child
+// sitemaps (same cap as the platform).
+export const MAX_INDEX_CHILDREN = 20;
+
+// Output styles, same names as the platform: `full` renders each link with its
+// description, `compact` drops the descriptions, `sections-only` keeps just the
+// number of entries per section.
+export const FORMATS = ['full', 'compact', 'sections-only'];
+
 const xmlParser = new XMLParser({
   ignoreAttributes: true,
   trimValues: true,
+  // Keep every value a string: a numeric-looking <loc> or <lastmod> must not
+  // turn into a number (the platform's parser keeps text as text).
+  parseTagValue: false,
   // Always produce arrays for repeated elements so the parser output is uniform.
   isArray: (name) => name === 'url' || name === 'sitemap',
 });
@@ -38,8 +57,9 @@ export function parseSitemap(xmlString) {
   }
   const parsed = xmlParser.parse(xmlString);
 
-  if (parsed.urlset && parsed.urlset.url) {
-    const entries = parsed.urlset.url
+  // An empty <urlset></urlset> parses to '' : still a sitemap, with no entries.
+  if (parsed.urlset !== undefined) {
+    const entries = (parsed.urlset?.url || [])
       .map((u) => ({
         loc: typeof u.loc === 'string' ? u.loc.trim() : '',
         lastmod: u.lastmod ? String(u.lastmod).trim() : undefined,
@@ -48,8 +68,8 @@ export function parseSitemap(xmlString) {
     return { type: 'sitemap', entries };
   }
 
-  if (parsed.sitemapindex && parsed.sitemapindex.sitemap) {
-    const entries = parsed.sitemapindex.sitemap
+  if (parsed.sitemapindex !== undefined) {
+    const entries = (parsed.sitemapindex?.sitemap || [])
       .map((s) => ({
         loc: typeof s.loc === 'string' ? s.loc.trim() : '',
         lastmod: s.lastmod ? String(s.lastmod).trim() : undefined,
@@ -103,12 +123,12 @@ export async function loadSitemap(urlOrPath) {
  *
  * @param {Array<{ loc: string }>} entries
  * @param {string} sitemapUrl  Any URL from the same origin (used to derive /robots.txt).
- * @param {{ timeoutMs?: number }} [opts]
+ * @param {{ timeoutMs?: number, userAgent?: string, fetch?: typeof fetch }} [opts]
  * @returns {Promise<Array<{ loc: string }>>}
  */
 export async function filterByRobots(entries, sitemapUrl, opts = {}) {
   if (!entries.length) return entries;
-  const isAllowed = await loadRobotsChecker(sitemapUrl, opts);
+  const isAllowed = await loadRobotsChecker(sitemapUrl, { userAgent: USER_AGENT, ...opts });
   return entries.filter((e) => {
     try {
       return isAllowed(new URL(e.loc).pathname);
@@ -116,6 +136,68 @@ export async function filterByRobots(entries, sitemapUrl, opts = {}) {
       return true;
     }
   });
+}
+
+/**
+ * Keep only entries whose URL path starts with one of `include` (all when the
+ * list is empty) and none of `exclude`. Excludes win on conflicts.
+ *
+ * @param {Array<{ loc: string }>} entries
+ * @param {string[]} [include]
+ * @param {string[]} [exclude]
+ */
+export function filterByPrefix(entries, include = [], exclude = []) {
+  if (!include.length && !exclude.length) return entries;
+  return entries.filter((e) => {
+    let path;
+    try {
+      path = new URL(e.loc).pathname || '/';
+    } catch {
+      return false;
+    }
+    if (exclude.some((p) => path.startsWith(p))) return false;
+    return !include.length || include.some((p) => path.startsWith(p));
+  });
+}
+
+/**
+ * Drop repeated URLs (the first one wins, order kept) and cap the list.
+ *
+ * @param {Array<{ loc: string }>} entries
+ * @param {number|null} [maxEntries]  null or undefined: no cap.
+ * @returns {{ entries: Array<{ loc: string }>, total: number, truncated: boolean }}
+ */
+export function selectEntries(entries, maxEntries = null) {
+  const seen = new Set();
+  const unique = [];
+  for (const e of entries) {
+    if (seen.has(e.loc)) continue;
+    seen.add(e.loc);
+    unique.push(e);
+  }
+  const total = unique.length;
+  if (maxEntries == null || total <= maxEntries) return { entries: unique, total, truncated: false };
+  return { entries: unique.slice(0, maxEntries), total, truncated: true };
+}
+
+/**
+ * Read the page title and meta description out of an HTML document with cheap
+ * regexes (no full HTML parser). Both come back on one line, entities decoded;
+ * a missing or empty value is null.
+ *
+ * @param {string} html
+ * @returns {{ title: string|null, description: string|null }}
+ */
+export function extractPageMeta(html) {
+  const body = String(html || '');
+  const titleMatch = body.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  // <meta name="description" content="..."> in either attribute order.
+  const descMatch =
+    body.match(/<meta[^>]+name=["']description["'][^>]*content=["']([^"']*)["'][^>]*>/i) ||
+    body.match(/<meta[^>]+content=["']([^"']*)["'][^>]*name=["']description["'][^>]*>/i);
+  const title = titleMatch ? oneLine(decodeHtmlEntities(stripTags(titleMatch[1]))) : '';
+  const description = descMatch ? oneLine(decodeHtmlEntities(descMatch[1])) : '';
+  return { title: title || null, description: description || null };
 }
 
 /**
@@ -140,20 +222,9 @@ export async function enrichEntry(entry, opts = {}) {
     if (!res.ok) return entry;
     const ct = res.headers.get('content-type') || '';
     if (!ct.toLowerCase().includes('html')) return entry;
-    const html = await res.text();
-
-    const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-    if (titleMatch) {
-      entry.title = decodeHtmlEntities(stripTags(titleMatch[1]).trim());
-    }
-
-    // <meta name="description" content="..."> in either attribute order.
-    const descMatch =
-      html.match(/<meta[^>]+name=["']description["'][^>]*content=["']([^"']*)["'][^>]*>/i) ||
-      html.match(/<meta[^>]+content=["']([^"']*)["'][^>]*name=["']description["'][^>]*>/i);
-    if (descMatch) {
-      entry.description = decodeHtmlEntities(descMatch[1].trim());
-    }
+    const meta = extractPageMeta(await res.text());
+    if (meta.title) entry.title = meta.title;
+    if (meta.description) entry.description = meta.description;
   } catch {
     // Swallow per-entry errors — enrichment is best-effort.
   } finally {
@@ -176,23 +247,34 @@ export function groupByPrefix(entries) {
     if (!groups.has(prefix)) groups.set(prefix, []);
     groups.get(prefix).push(entry);
   }
-  // Sort: "/" first, then alphabetical.
+  // Sort: "/" first, then by code point (not by locale: the order must not
+  // depend on the machine, and it matches the platform's Python sort).
   return new Map(
     [...groups.entries()].sort((a, b) => {
       if (a[0] === '/') return -1;
       if (b[0] === '/') return 1;
-      return a[0].localeCompare(b[0]);
+      return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0;
     }),
   );
 }
 
+// The first path segment, percent-decoded, so `/perch%C3%A9` and `/perché`
+// land in the same section.
 function prefixOf(loc) {
   try {
     const u = new URL(loc);
     const seg = u.pathname.split('/').filter(Boolean)[0];
-    return seg ? `/${seg}` : '/';
+    return seg ? `/${decodeSegment(seg)}` : '/';
   } catch {
     return '/';
+  }
+}
+
+function decodeSegment(seg) {
+  try {
+    return decodeURIComponent(seg);
+  } catch {
+    return seg;
   }
 }
 
@@ -206,17 +288,20 @@ function prefixOf(loc) {
  *   - [Title](url): description
  *
  * @param {Map<string, Array<{ loc: string, title?: string, description?: string }>>} groups
- * @param {{ name?: string, summary?: string, sectionTitles?: Record<string,string> }} [header]
+ * `format` is one of FORMATS (default `full`; an unknown value renders `full`).
+ *
+ * @param {{ name?: string, summary?: string, sectionTitles?: Record<string,string>, format?: string }} [header]
  * @returns {string}
  */
 export function renderLlmsTxt(groups, header = {}) {
   const lines = [];
   const name = header.name || 'Website';
+  const format = FORMATS.includes(header.format) ? header.format : 'full';
   lines.push(`# ${name}`);
   lines.push('');
 
   if (header.summary) {
-    lines.push(`> ${header.summary}`);
+    lines.push(`> ${oneLine(header.summary)}`);
     lines.push('');
   }
 
@@ -224,11 +309,16 @@ export function renderLlmsTxt(groups, header = {}) {
     const title = sectionTitle(prefix, header.sectionTitles);
     lines.push(`## ${title}`);
     lines.push('');
+    if (format === 'sections-only') {
+      lines.push(`- ${entries.length} entries`);
+      lines.push('');
+      continue;
+    }
     for (const e of entries) {
       const linkText = e.title && e.title.length > 0 ? e.title : prettyLinkFromUrl(e.loc);
-      const safeText = escapeLinkText(linkText);
+      const safeText = escapeLinkText(oneLine(linkText));
       const base = `- [${safeText}](${e.loc})`;
-      lines.push(e.description ? `${base}: ${oneLine(e.description)}` : base);
+      lines.push(format === 'full' && e.description ? `${base}: ${oneLine(e.description)}` : base);
     }
     lines.push('');
   }
@@ -241,11 +331,13 @@ export function renderLlmsTxt(groups, header = {}) {
 function sectionTitle(prefix, overrides) {
   if (overrides && overrides[prefix]) return overrides[prefix];
   if (prefix === '/') return 'Main';
-  // "/blog" -> "Blog", "/docs" -> "Docs", "/case-studies" -> "Case Studies"
+  // "/blog" -> "Blog", "/docs" -> "Docs", "/case-studies" -> "Case Studies",
+  // "/FAQ" -> "FAQ" (only the first letter of each word changes).
   const slug = prefix.replace(/^\//, '');
   return slug
     .split('-')
-    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
     .join(' ');
 }
 
@@ -254,7 +346,7 @@ function prettyLinkFromUrl(loc) {
     const u = new URL(loc);
     const last = u.pathname.split('/').filter(Boolean).pop();
     if (!last) return u.hostname;
-    return last.replace(/[-_]/g, ' ');
+    return decodeSegment(last).replace(/[-_]/g, ' ');
   } catch {
     return loc;
   }
@@ -264,15 +356,34 @@ function stripTags(s) {
   return s.replace(/<[^>]+>/g, '');
 }
 
+// Named entities a page title or description realistically carries (the
+// accented vowels of Italian/French/Spanish copy, quotes, dashes). Numeric
+// references (&#233; &#xE9;) are all decoded. The platform uses Python's
+// html.unescape, which knows every HTML5 name: for the names below the two agree.
+const NAMED_ENTITIES = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: '\u00a0',
+  agrave: 'à', aacute: 'á', acirc: 'â', auml: 'ä', egrave: 'è', eacute: 'é', ecirc: 'ê', euml: 'ë',
+  igrave: 'ì', iacute: 'í', icirc: 'î', iuml: 'ï', ograve: 'ò', oacute: 'ó', ocirc: 'ô', ouml: 'ö',
+  ugrave: 'ù', uacute: 'ú', ucirc: 'û', uuml: 'ü', ntilde: 'ñ', ccedil: 'ç', szlig: 'ß',
+  Agrave: 'À', Aacute: 'Á', Egrave: 'È', Eacute: 'É', Igrave: 'Ì', Iacute: 'Í',
+  Ograve: 'Ò', Oacute: 'Ó', Ugrave: 'Ù', Uacute: 'Ú', Ntilde: 'Ñ', Ccedil: 'Ç',
+  laquo: '«', raquo: '»', lsquo: '\u2018', rsquo: '\u2019', ldquo: '\u201c', rdquo: '\u201d',
+  ndash: '\u2013', mdash: '\u2014', hellip: '\u2026', middot: '·', bull: '\u2022',
+  euro: '\u20ac', copy: '©', reg: '®', trade: '\u2122', deg: '°',
+};
+
 function decodeHtmlEntities(s) {
-  return s
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+  return s.replace(/&(#[xX][0-9a-fA-F]+|#\d+|[A-Za-z]+);/g, (whole, ref) => {
+    if (ref[0] === '#') {
+      const code = ref[1] === 'x' || ref[1] === 'X' ? parseInt(ref.slice(2), 16) : parseInt(ref.slice(1), 10);
+      try {
+        return String.fromCodePoint(code);
+      } catch {
+        return whole;
+      }
+    }
+    return Object.hasOwn(NAMED_ENTITIES, ref) ? NAMED_ENTITIES[ref] : whole;
+  });
 }
 
 function escapeLinkText(s) {
@@ -284,4 +395,4 @@ function oneLine(s) {
   return s.replace(/\s+/g, ' ').trim();
 }
 
-export const _internals = { prefixOf, sectionTitle, prettyLinkFromUrl, USER_AGENT };
+export const _internals = { prefixOf, sectionTitle, prettyLinkFromUrl, decodeHtmlEntities, USER_AGENT };

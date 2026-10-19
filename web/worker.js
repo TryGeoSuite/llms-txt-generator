@@ -1,7 +1,10 @@
 // "llms.txt Generator" — hosted free tool (Cloudflare Worker).
 //
-// Reuses the package's pure pipeline — parseSitemap → groupByPrefix →
-// renderLlmsTxt — fed a sitemap fetched with the platform `fetch()`. It does
+// Reuses the package's pure pipeline (parseSitemap, selectEntries,
+// groupByPrefix, renderLlmsTxt) fed a sitemap fetched with the platform
+// `fetch()`, with the GeoSuite platform's limits: 100 URLs by default, at most
+// 500, and the first 20 child sitemaps of an index. Same input, same llms.txt
+// as the platform's llms.txt Studio (without enrichment). It does
 // NOT enrich titles/descriptions (that fetches every page; use the CLI for
 // that), so this is the fast "structure-only" llms.txt.
 //
@@ -17,9 +20,17 @@
 //                → GeoSuite's favicon (PNG)
 //   GET /logos/{chatgpt,gemini,perplexity}.svg → engine logos in the closing panel
 // API routes:
-//   GET /api/generate?url=...    → { site, count, truncated, llmstxt, error }
+//   GET /api/generate?url=...&max_entries=100&format=full
+//                                → { site, count, total, truncated, llmstxt, error }
 
-import { parseSitemap, groupByPrefix, renderLlmsTxt } from '../src/index.js';
+import {
+  parseSitemap,
+  selectEntries,
+  groupByPrefix,
+  renderLlmsTxt,
+  FORMATS,
+  MAX_INDEX_CHILDREN,
+} from '../src/index.js';
 import { renderPage } from './page.js';
 import OG_PNG from './og.png'; // bundled as ArrayBuffer via the wrangler "Data" rule
 import FAVICON_PNG from './favicon.png'; // GeoSuite's official favicon, 96px
@@ -28,9 +39,11 @@ import LOGO_CHATGPT from './logos/chatgpt.svg'; // bundled as text via the "Text
 import LOGO_GEMINI from './logos/gemini.svg';
 import LOGO_PERPLEXITY from './logos/perplexity.svg';
 
-const TIMEOUT_MS = 8000;
-const MAX_ENTRIES = 2000;
-const MAX_INDEX_CHILDREN = 10;
+// Same limits as the platform (llms_txt_service.py): 12 s per sitemap fetch,
+// 100 URLs unless the caller asks for more, never more than 500.
+const TIMEOUT_MS = 12_000;
+const DEFAULT_MAX_ENTRIES = 100;
+const HARD_MAX_ENTRIES = 500;
 const UA = 'llms-txt-generator-web/1.0 (+https://github.com/TryGeoSuite/llms-txt-generator)';
 
 // The engines named in the closing panel (theme.js ENGINES), same files as the hub.
@@ -69,7 +82,13 @@ async function fetchText(url) {
   return res.text();
 }
 
-async function generate(input) {
+function maxEntriesParam(raw) {
+  const n = Number.parseInt(String(raw ?? ''), 10);
+  if (!Number.isFinite(n)) return DEFAULT_MAX_ENTRIES;
+  return Math.max(1, Math.min(HARD_MAX_ENTRIES, n));
+}
+
+async function generate(input, { maxEntries = DEFAULT_MAX_ENTRIES, format = 'full' } = {}) {
   let u;
   try {
     u = siteUrl(input);
@@ -94,33 +113,34 @@ async function generate(input) {
 
   let entries = parsed.entries;
   if (parsed.type === 'sitemapindex') {
-    const merged = [];
-    for (const child of entries.slice(0, MAX_INDEX_CHILDREN)) {
-      try {
-        const cp = parseSitemap(await fetchText(child.loc));
-        if (cp.type === 'sitemap') merged.push(...cp.entries);
-      } catch {
-        // Skip child sitemaps we can't fetch/parse.
-      }
-    }
-    entries = merged;
+    // Children are read in parallel and merged in index order.
+    const children = await Promise.all(
+      entries.slice(0, MAX_INDEX_CHILDREN).map(async (child) => {
+        try {
+          const cp = parseSitemap(await fetchText(child.loc));
+          return cp.type === 'sitemap' ? cp.entries : [];
+        } catch {
+          return []; // Skip child sitemaps we can't fetch/parse.
+        }
+      }),
+    );
+    entries = children.flat();
   }
 
-  const total = entries.length;
-  const truncated = total > MAX_ENTRIES;
-  if (truncated) entries = entries.slice(0, MAX_ENTRIES);
+  const selected = selectEntries(entries, maxEntries);
+  entries = selected.entries;
 
   const groups = groupByPrefix(entries);
   const name = u.hostname.replace(/^www\./, '');
-  const llmstxt = renderLlmsTxt(groups, { name });
+  const llmstxt = renderLlmsTxt(groups, { name, format });
 
   return {
     site: u.origin,
     sitemapUrl,
     isIndex: parsed.type === 'sitemapindex',
     count: entries.length,
-    total,
-    truncated,
+    total: selected.total,
+    truncated: selected.truncated,
     llmstxt,
     error: null,
   };
@@ -145,7 +165,12 @@ export default {
           headers: JSON_HEADERS,
         });
       }
-      return new Response(JSON.stringify(await generate(target)), { headers: JSON_HEADERS });
+      const format = url.searchParams.get('format');
+      const result = await generate(target, {
+        maxEntries: maxEntriesParam(url.searchParams.get('max_entries')),
+        format: FORMATS.includes(format) ? format : 'full',
+      });
+      return new Response(JSON.stringify(result), { headers: JSON_HEADERS });
     }
 
     // --- Static assets ---
