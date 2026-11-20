@@ -10,7 +10,7 @@
 // injected per-language into the inline <script> (see S[lang].js). API field
 // names, URLs and code are NOT translated.
 
-import { FONTS, BASE_CSS, ENGINES } from './theme.js';
+import { FONTS, BASE_CSS, ENGINES, analytics, withSiteUtm } from './theme.js';
 
 const BASE = 'https://llmstxt-generator.geosuite.workers.dev';
 const HUB = 'https://tools.trygeosuite.it';
@@ -18,6 +18,11 @@ const GH = 'https://github.com/TryGeoSuite/llms-txt-generator';
 const NPM = 'https://www.npmjs.com/package/@geosuite/llms-txt-generator';
 const ANALYSIS = 'https://trygeosuite.it/analisi-gratuita?utm_source=geosuite-open&utm_medium=tool&utm_campaign=llmstxt-generator';
 const CMD = 'npx @geosuite/llms-txt-generator &lt;sitemap&gt;';
+// The tool id in the usage statistics (theme.js analytics).
+const TOOL = 'llms_txt_generator';
+// The campaign name the existing signup links already use: one name per tool
+// keeps a per-campaign report on one row.
+const CAMPAIGN = 'llmstxt-generator';
 
 // State icons, same drawing as the hub's check page. The circle takes the state
 // color from CSS; the text next to it always says the same thing.
@@ -51,7 +56,7 @@ const S = {
     label: 'Website or sitemap URL',
     placeholder: 'https://example.com',
     generate: 'Generate',
-    facts: ['Free', 'No login, no tracking', 'Open source (MIT)'],
+    facts: ['Free', 'No login, no cookies', 'Open source (MIT)'],
     hint: `We fetch only your <code>sitemap.xml</code> (and its child sitemaps). For page titles and descriptions use the CLI with <code>--enrich</code>.`,
     sampleLabel: 'What you get',
     sampleMeta: 'llms.txt, grouped by section',
@@ -62,7 +67,7 @@ const S = {
     ctaTitle: 'Readable is step one. Recommended is the goal.',
     ctaText: 'An llms.txt helps AI models find your best pages. GeoSuite asks ChatGPT, Gemini and Perplexity the questions your customers really ask, and tells you whether you are recommended, who wins instead and what to fix first. The report arrives by email.',
     ctaButton: 'Get the free analysis',
-    footer: `Open source (MIT) by <a href="https://github.com/matte97p">Matteo Perino</a>, a <a href="https://trygeosuite.it">GeoSuite</a> tool. Code on <a href="${GH}">GitHub</a>, package on <a href="${NPM}">npm</a>.`,
+    footer: `Open source (MIT) by <a href="https://github.com/matte97p">Matteo Perino</a>, a <a href="https://trygeosuite.it">GeoSuite</a> tool. Code on <a href="${GH}">GitHub</a>, package on <a href="${NPM}">npm</a>. Anonymous usage statistics with PostHog (EU), without cookies: of what you type, they include only the site’s hostname.`,
     // Strings used by the inline client script.
     js: {
       forValue: 'llms.txt for ',
@@ -91,7 +96,7 @@ const S = {
     label: 'URL del sito o della sitemap',
     placeholder: 'https://esempio.it',
     generate: 'Genera',
-    facts: ['Gratis', 'Senza login né tracciamento', 'Open source (MIT)'],
+    facts: ['Gratis', 'Senza login né cookie', 'Open source (MIT)'],
     hint: `Scarichiamo solo il tuo <code>sitemap.xml</code> (e le sitemap figlie). Per titoli e descrizioni delle pagine usa la CLI con <code>--enrich</code>.`,
     sampleLabel: 'Cosa ottieni',
     sampleMeta: 'llms.txt, diviso per sezioni',
@@ -102,7 +107,7 @@ const S = {
     ctaTitle: 'Farsi leggere è il primo passo. Farsi consigliare è l\'obiettivo.',
     ctaText: 'Un llms.txt aiuta i modelli AI a trovare le tue pagine migliori. GeoSuite fa a ChatGPT, Gemini e Perplexity le domande che i tuoi clienti fanno davvero, e ti dice se ti consigliano, chi vince al posto tuo e cosa correggere per primo. Il report arriva via mail.',
     ctaButton: 'Richiedi l\'analisi gratuita',
-    footer: `Open source (MIT) di <a href="https://github.com/matte97p">Matteo Perino</a>, uno strumento di <a href="https://trygeosuite.it">GeoSuite</a>. Codice su <a href="${GH}">GitHub</a>, pacchetto su <a href="${NPM}">npm</a>.`,
+    footer: `Open source (MIT) di <a href="https://github.com/matte97p">Matteo Perino</a>, uno strumento di <a href="https://trygeosuite.it">GeoSuite</a>. Codice su <a href="${GH}">GitHub</a>, pacchetto su <a href="${NPM}">npm</a>. Statistiche d’uso anonime con PostHog (UE), senza cookie: di quello che scrivi includono solo il nome del sito.`,
     // Strings used by the inline client script.
     js: {
       forValue: 'llms.txt per ',
@@ -130,7 +135,7 @@ export function renderPage(lang) {
   const t = S[lang] || S.en;
   const facts = t.facts.map((f) => `<li>${ICONS.ok}${f}</li>`).join('');
 
-  return `<!doctype html>
+  return withSiteUtm(`<!doctype html>
 <html lang="${lang}">
 <head>
 <meta charset="utf-8">
@@ -157,6 +162,7 @@ export function renderPage(lang) {
 <meta name="twitter:description" content="${t.desc}">
 <meta name="twitter:image" content="${BASE}/og.png">
 ${FONTS}
+${analytics(TOOL)}
 <style>
 ${BASE_CSS}
   code { font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:.875em; }
@@ -259,7 +265,7 @@ ${BASE_CSS}
         <p>${t.ctaText}</p>
         ${ENGINES}
       </div>
-      <a class="primary" href="${ANALYSIS}" target="_blank" rel="noopener">${t.ctaButton}</a>
+      <a class="primary" href="${ANALYSIS}" target="_blank" rel="noopener" data-cta="analysis">${t.ctaButton}</a>
     </section>
   </main>
 
@@ -271,7 +277,18 @@ ${BASE_CSS}
   var out = document.getElementById('out');
   var input = document.getElementById('u');
   var btn = document.getElementById('go');
-  var lastText = '';
+  var lastText = '', lastHost = '';
+
+  // Usage statistics (theme.js analytics): never throws, never sends the URL.
+  function track(event, props){ try { if (window.gsTrack) window.gsTrack(event, props); } catch (e) {} }
+  function hostOf(url){ return window.gsTrack ? window.gsTrack.host(url) : ''; }
+  // The API's error is a sentence that quotes the URL: send a code instead.
+  function errCode(msg){
+    msg = String(msg || '');
+    return /valid URL/i.test(msg) ? 'invalid_url' : /missing/i.test(msg) ? 'missing_url'
+      : /not a valid sitemap/i.test(msg) ? 'invalid_sitemap' : /timed out/i.test(msg) ? 'timeout'
+      : /could not fetch/i.test(msg) ? 'fetch_failed' : 'generic';
+  }
 
   function esc(s){ return String(s).replace(/[&<>"]/g, function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
@@ -314,7 +331,10 @@ ${BASE_CSS}
 
     document.getElementById('copy').addEventListener('click', function(){
       var b = this;
-      navigator.clipboard.writeText(lastText).then(function(){ flash(b); });
+      navigator.clipboard.writeText(lastText).then(function(){
+        track('tool_result_copied', { input_host: lastHost, content: 'llms_txt' });
+        flash(b);
+      });
     });
     document.getElementById('dl').addEventListener('click', function(){
       var blob = new Blob([lastText], { type: 'text/plain' });
@@ -322,24 +342,36 @@ ${BASE_CSS}
       a.href = URL.createObjectURL(blob); a.download = 'llms.txt';
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(a.href);
+      track('tool_file_downloaded', { input_host: lastHost, file: 'llms.txt' });
     });
   }
 
-  function run(url){
+  // source: 'form' (submitted) or 'shared_link' (a ?url= link re-runs it).
+  function run(url, source){
     if (!url) return;
+    var t0 = Date.now(), inputHost = hostOf(url);
+    lastHost = inputHost;
+    track('tool_run_started', { input_host: inputHost, source: source });
     btn.disabled = true;
     out.innerHTML = '<div class="panel loading"><span class="spinner" aria-hidden="true"></span><span>' + I18N.reading + esc(url) + I18N.readingSuffix + '</span></div>';
     fetch('/api/generate?url=' + encodeURIComponent(url))
       .then(function(res){ return res.json(); })
-      .then(function(r){ render(r); })
-      .catch(function(){ out.innerHTML = errorBox(I18N.networkError); })
+      .then(function(r){
+        if (r.error) track('tool_run_failed', { input_host: inputHost, error: errCode(r.error), duration_ms: Date.now() - t0 });
+        else track('tool_run_completed', { input_host: inputHost, duration_ms: Date.now() - t0, pages: r.count, total: r.total, truncated: !!r.truncated, sitemap_index: !!r.isIndex });
+        render(r);
+      })
+      .catch(function(){
+        track('tool_run_failed', { input_host: inputHost, error: 'network', duration_ms: Date.now() - t0 });
+        out.innerHTML = errorBox(I18N.networkError);
+      })
       .finally(function(){ btn.disabled = false; });
   }
 
   document.getElementById('f').addEventListener('submit', function(e){
     e.preventDefault();
     var url = input.value.trim();
-    if (url){ history.replaceState(null, '', '?url=' + encodeURIComponent(url)); run(url); }
+    if (url){ history.replaceState(null, '', '?url=' + encodeURIComponent(url)); run(url, 'form'); }
   });
 
   // The npx command: a copy button, only where the clipboard API exists.
@@ -349,15 +381,18 @@ ${BASE_CSS}
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'ghost'; b.textContent = I18N.copy; b.setAttribute('aria-label', COPY_LABEL);
       b.addEventListener('click', function(){
-        navigator.clipboard.writeText(cmd).then(function(){ flash(b); }).catch(function(){});
+        navigator.clipboard.writeText(cmd).then(function(){
+          track('tool_result_copied', { content: 'cli_command' });
+          flash(b);
+        }).catch(function(){});
       });
       box.appendChild(b);
     });
   }
 
   var shared = new URLSearchParams(location.search).get('url');
-  if (shared){ input.value = shared; run(shared); }
+  if (shared){ input.value = shared; run(shared, 'shared_link'); }
 </script>
 </body>
-</html>`;
+</html>`, CAMPAIGN);
 }

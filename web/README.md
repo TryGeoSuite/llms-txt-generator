@@ -12,8 +12,10 @@ Same pipeline as the CLI (`parseSitemap → groupByPrefix → renderLlmsTxt`).
 - `GET /api/generate?url=https://example.com` (optional `max_entries`, default 100, at most 500; optional `format`: `full`, `compact`, `sections-only`): `{ site, count, total, truncated, llmstxt }`
 
 Structure-only (no per-page titles/descriptions — that's the CLI's `--enrich`,
-which fetches every page). No database, no tracking: it fetches only the
-sitemap (and child sitemaps for a sitemap index).
+which fetches every page). No database, no cookies: it fetches only the
+sitemap (and child sitemaps for a sitemap index). Anonymous usage statistics go
+to PostHog (EU) in cookieless mode (`analytics()` in `theme.js`): the tool, the
+hostname of the site and the outcome, never the full URL.
 
 ## Run locally
 
