@@ -119,3 +119,115 @@ export const ENGINES = `<div class="engines" aria-hidden="true">
           <span><img src="/logos/gemini.svg" alt="">Gemini</span>
           <span><img src="/logos/perplexity.svg" alt="">Perplexity</span>
         </div>`;
+
+// Anonymous usage statistics with PostHog (EU cloud), in cookieless mode: no
+// cookies and no localStorage, so no consent banner. Events carry the tool, the
+// hostname of the site checked and the outcome, never the full URL or anything
+// else typed in the form. The key is PostHog's public client key.
+//
+// analytics(tool) goes in <head>. It loads posthog-js with the official snippet,
+// tags every event with environment, surface and tool, and defines
+// window.gsTrack(event, props), the only way pages capture: it never throws, so
+// analytics can never break a tool. A click on a link out of the tool sends
+// tool_cta_clicked, and a link to trygeosuite.it gets ph_tool_session (this
+// PostHog session) at click time, so the site can join the two sessions.
+const POSTHOG_KEY = 'phc_rAKMw8Gd8gaKheCb86QZXEpZnAr56YnweS79Td95LbCX';
+const POSTHOG_HOST = 'https://eu.i.posthog.com';
+
+// The official loader stub (posthog.com/docs/libraries/js): it queues calls
+// until array.js arrives from eu-assets.i.posthog.com.
+const POSTHOG_SNIPPET = `!function(t,e){var o,n,p,r;e.__SV||(window.posthog&&window.posthog.__loaded)||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSurveysLoaded onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey canRenderSurveyAsync identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);`;
+
+// The utm parameters every link to trygeosuite.it carries, one campaign name per tool.
+export const siteUtm = (tool) => `utm_source=geosuite-open&utm_medium=tool&utm_campaign=${tool}`;
+
+// Adds the utm parameters to every href to trygeosuite.it in a rendered page
+// that has none yet (links that already carry their own, like the signup ones,
+// are left as they are). It also matches hrefs inside JSON strings (href=\").
+export function withSiteUtm(html, tool) {
+  return html.replace(/href=(\\?")(https:\/\/(?:www\.)?trygeosuite\.it(?:[/?#][^"\\]*)?)/g, (m, q, url) => {
+    if (/[?&]utm_source=/.test(url)) return m;
+    const hash = url.indexOf('#');
+    let base = hash < 0 ? url : url.slice(0, hash);
+    if (!/\.it\//.test(base) && !base.includes('?')) base += '/';
+    const frag = hash < 0 ? '' : url.slice(hash);
+    return `href=${q}${base}${base.includes('?') ? '&' : '?'}${siteUtm(tool)}${frag}`;
+  });
+}
+
+export function analytics(tool) {
+  return `<script id="gs-analytics">
+${POSTHOG_SNIPPET}
+(function () {
+  var TOOL = ${JSON.stringify(tool)};
+  var h = location.hostname;
+  var env = h === 'tools.trygeosuite.it' || /[.]geosuite[.]workers[.]dev$/.test(h) ? 'production'
+    : /^(localhost|127[.]0[.]0[.]1|0[.]0[.]0[.]0)$/.test(h) || h === '[::1]' ? 'local' : 'dev';
+  try {
+    window.posthog.init(${JSON.stringify(POSTHOG_KEY)}, {
+      api_host: ${JSON.stringify(POSTHOG_HOST)},
+      cookieless_mode: 'always',
+      person_profiles: 'identified_only',
+      capture_pageview: true,
+      capture_pageleave: true,
+      autocapture: true,
+      disable_session_recording: true
+    });
+    window.posthog.register({ environment: env, surface: 'oss_tool', tool: TOOL });
+  } catch (e) {}
+
+  window.gsTrack = function (event, props, options) {
+    try {
+      if (!window.posthog || !window.posthog.capture) return;
+      var p = { tool: TOOL };
+      for (var k in props || {}) p[k] = props[k];
+      window.posthog.capture(event, p, options);
+    } catch (e) {}
+  };
+  // The hostname of what the visitor typed, never the path or the query.
+  window.gsTrack.host = function (value) {
+    try {
+      value = String(value || '').trim();
+      return new URL(/^https?:[/][/]/i.test(value) ? value : 'https://' + value).hostname.toLowerCase();
+    } catch (e) { return ''; }
+  };
+  // Milliseconds since t0, for duration_ms.
+  window.gsTrack.since = function (t0) { return Math.round(Date.now() - t0); };
+
+  function sessionId() {
+    try {
+      var s = window.posthog && window.posthog.get_session_id && window.posthog.get_session_id();
+      return typeof s === 'string' ? s : '';
+    } catch (e) { return ''; }
+  }
+  // Only the links that matter for the journey: a link to the visitor's own
+  // site, say, sends nothing. A data-cta attribute on the link names it instead.
+  function ctaKind(u) {
+    var host = u.hostname.replace(/^www[.]/, '');
+    if (host === 'calendar.app.google') return 'demo';
+    if (host === 'trygeosuite.it') return /^[/]signup/.test(u.pathname) ? 'signup' : 'site';
+    if (host === 'github.com') return 'github';
+    if (host === 'npmjs.com') return 'npm';
+    if (host === 'tools.trygeosuite.it' || /[.]geosuite[.]workers[.]dev$/.test(host)) return 'other tool';
+    return '';
+  }
+  function onLink(e) {
+    try {
+      var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+      if (!a) return;
+      var u = new URL(a.href, location.href);
+      if (u.origin === location.origin) return;
+      var kind = a.getAttribute('data-cta') || ctaKind(u);
+      if (!kind) return;
+      if (u.hostname.replace(/^www[.]/, '') === 'trygeosuite.it') {
+        var sid = sessionId();
+        if (sid) { u.searchParams.set('ph_tool_session', sid); a.href = u.toString(); }
+      }
+      window.gsTrack('tool_cta_clicked', { cta: kind, destination: u.origin + u.pathname }, { transport: 'sendBeacon' });
+    } catch (err) {}
+  }
+  document.addEventListener('click', onLink, true);
+  document.addEventListener('auxclick', function (e) { if (e.button === 1) onLink(e); }, true);
+})();
+</script>`;
+}
